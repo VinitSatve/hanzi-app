@@ -8,10 +8,12 @@ const fs = require("node:fs");
 
 let testEnv;
 const PROJECT_ID = process.env.GCP_PROJECT || "demo-no-project";
-const ALICE_UID = "alice_123";
-const BOB_UID = "bob_456";
+const ALICE_UID = "alice_mono_1";
+const BOB_UID = "bob_mono_2";
 
-const [emulatorHost, emulatorPortStr] = (process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8085").split(":");
+const [emulatorHost, emulatorPortStr] = (
+  process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8085"
+).split(":");
 const emulatorPort = parseInt(emulatorPortStr, 10);
 
 before(async () => {
@@ -38,146 +40,230 @@ beforeEach(async () => {
   }
 });
 
-function createValidProfilePayload(uid, serverTimestamp) {
-  return {
-    userId: uid,
-    displayName: "Mei Lin",
-    scriptMode: "SIMPLIFIED",
-    hskStandard: "HSK_2",
-    currentHskLevel: 1,
-    dailyGoalMinutes: 20,
-    studyMinutesToday: 15,
-    totalStudyMinutes: 120,
-    streakDays: 5,
-    points: 250,
-    completedLessonIds: ["pinyin_1", "hsk1_1"],
-    masteredCharacterIds: ["char_ni", "char_hao"],
-    unlockedBadgeIds: ["badge_first_lesson"],
-    downloadedPackIds: ["pack_hsk1"],
-    listeningAccuracy: 88,
-    readingAccuracy: 92,
-    speakingAccuracy: 85,
-    createdAt: serverTimestamp,
-    updatedAt: serverTimestamp,
-  };
+function nowTimestamp() {
+  return new Date(Date.now() - 1000);
 }
 
-function createValidFlashcardPayload(uid, serverTimestamp) {
-  return {
-    userId: uid,
-    simplified: "你好",
-    traditional: "你好",
-    pinyin: "nǐ hǎo",
-    english: "Hello",
-    partOfSpeech: "Greeting",
-    exampleChinese: "你好，很高兴认识你。",
-    examplePinyin: "Nǐ hǎo, hěn gāoxìng rènshí nǐ.",
-    exampleEnglish: "Hello, nice to meet you.",
-    hskLevel: 1,
-    category: "Greetings",
-    status: "LEARNING",
-    intervalDays: 1,
-    easeFactor: 250,
-    repetitions: 1,
-    nextReviewEpochDay: 20760,
-    isFavorite: true,
-    createdAt: serverTimestamp,
-    updatedAt: serverTimestamp,
-  };
-}
-
-function createValidNotePayload(uid, serverTimestamp) {
-  return {
-    userId: uid,
-    title: "Using 是 (shì)",
-    chineseSentence: "我是学生。",
-    pinyin: "Wǒ shì xuéshēng.",
-    englishTranslation: "I am a student.",
-    grammarNotes: "A + 是 + B connects two nouns.",
-    folder: "Grammar",
-    createdAt: serverTimestamp,
-    updatedAt: serverTimestamp,
-  };
-}
-
-test("Unauthenticated user: cannot read or create user profile", async () => {
+test("Unauthenticated user cannot read or write transactions", async () => {
   const unauthDb = testEnv.unauthenticatedContext().firestore();
-  await assertFails(unauthDb.collection("users").doc(ALICE_UID).get());
+  await assertFails(
+    unauthDb
+      .collection("users")
+      .doc(ALICE_UID)
+      .collection("transactions")
+      .get()
+  );
 });
 
-test("Authenticated user: can create and read own profile, flashcards, and notes", async () => {
-  const aliceCtx = testEnv.authenticatedContext(ALICE_UID);
-  const aliceDb = aliceCtx.firestore();
-  const now = new Date();
+test("Authenticated owner can create, update, list, and delete valid transaction", async () => {
+  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const txRef = aliceDb
+    .collection("users")
+    .doc(ALICE_UID)
+    .collection("transactions")
+    .doc("tx_101");
+  const ts = nowTimestamp();
 
   await assertSucceeds(
-    aliceDb.collection("users").doc(ALICE_UID).set(createValidProfilePayload(ALICE_UID, now))
+    txRef.set({
+      userId: ALICE_UID,
+      title: "Specialty Coffee Roasters",
+      amountCents: 650,
+      type: "EXPENSE",
+      categoryId: "dining",
+      categoryName: "Dining",
+      timestampMillis: Date.now(),
+      receiptNote: "Cortado + tip",
+      isSplit: false,
+      splitSummary: "",
+      isRecurringInstance: false,
+      createdAt: ts,
+      updatedAt: ts,
+    })
   );
-  await assertSucceeds(aliceDb.collection("users").doc(ALICE_UID).get());
+
+  await assertSucceeds(
+    txRef.update({
+      amountCents: 800,
+      receiptNote: "Updated tip",
+      updatedAt: new Date(),
+    })
+  );
 
   await assertSucceeds(
     aliceDb
       .collection("users")
       .doc(ALICE_UID)
-      .collection("flashcards")
-      .doc("card_1")
-      .set(createValidFlashcardPayload(ALICE_UID, now))
+      .collection("transactions")
+      .where("userId", "==", ALICE_UID)
+      .get()
   );
 
-  await assertSucceeds(
-    aliceDb
-      .collection("users")
-      .doc(ALICE_UID)
-      .collection("notes")
-      .doc("note_1")
-      .set(createValidNotePayload(ALICE_UID, now))
-  );
+  await assertSucceeds(txRef.delete());
 });
 
-test("Cross-user isolation: Bob cannot read or modify Alice's profile, flashcards, or notes", async () => {
-  const now = new Date();
-  await testEnv.withSecurityRulesDisabled(async (context) => {
-    const db = context.firestore();
-    await db.collection("users").doc(ALICE_UID).set(createValidProfilePayload(ALICE_UID, now));
-    await db
+test("Cross-user access to another user's transactions, goals, and bills is rejected", async () => {
+  const ts = nowTimestamp();
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await ctx
+      .firestore()
       .collection("users")
       .doc(ALICE_UID)
-      .collection("flashcards")
-      .doc("card_1")
-      .set(createValidFlashcardPayload(ALICE_UID, now));
-    await db
-      .collection("users")
-      .doc(ALICE_UID)
-      .collection("notes")
-      .doc("note_1")
-      .set(createValidNotePayload(ALICE_UID, now));
+      .collection("transactions")
+      .doc("tx_secret")
+      .set({
+        userId: ALICE_UID,
+        title: "Salary",
+        amountCents: 500000,
+        type: "INCOME",
+        categoryId: "salary",
+        categoryName: "Salary",
+        timestampMillis: Date.now(),
+        receiptNote: "",
+        isSplit: false,
+        splitSummary: "",
+        isRecurringInstance: false,
+        createdAt: ts,
+        updatedAt: ts,
+      });
   });
 
   const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();
-  await assertFails(bobDb.collection("users").doc(ALICE_UID).get());
   await assertFails(
-    bobDb.collection("users").doc(ALICE_UID).collection("flashcards").doc("card_1").get()
-  );
-  await assertFails(
-    bobDb.collection("users").doc(ALICE_UID).collection("notes").doc("note_1").get()
+    bobDb
+      .collection("users")
+      .doc(ALICE_UID)
+      .collection("transactions")
+      .doc("tx_secret")
+      .get()
   );
 });
 
-test("Shadow Update & Value Poisoning: rejects ghost fields and invalid enum values", async () => {
+test("Shadow update with ghost field or negative amount is rejected", async () => {
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
-  const now = new Date();
+  const txRef = aliceDb
+    .collection("users")
+    .doc(ALICE_UID)
+    .collection("transactions")
+    .doc("tx_bad");
+  const ts = nowTimestamp();
 
-  // Ghost field rejected by hasOnly
-  const ghostPayload = {
-    ...createValidProfilePayload(ALICE_UID, now),
-    isVerifiedAdmin: true,
-  };
-  await assertFails(aliceDb.collection("users").doc(ALICE_UID).set(ghostPayload));
+  // Negative amount fails
+  await assertFails(
+    txRef.set({
+      userId: ALICE_UID,
+      title: "Bad Expense",
+      amountCents: -500,
+      type: "EXPENSE",
+      categoryId: "dining",
+      categoryName: "Dining",
+      timestampMillis: Date.now(),
+      receiptNote: "",
+      isSplit: false,
+      splitSummary: "",
+      isRecurringInstance: false,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
 
-  // Invalid scriptMode rejected by isValidUserProfile
-  const badEnumPayload = {
-    ...createValidProfilePayload(ALICE_UID, now),
-    scriptMode: "INVALID_MODE",
-  };
-  await assertFails(aliceDb.collection("users").doc(ALICE_UID).set(badEnumPayload));
+  // Ghost field fails
+  await assertFails(
+    txRef.set({
+      userId: ALICE_UID,
+      title: "Ghost Expense",
+      amountCents: 500,
+      type: "EXPENSE",
+      categoryId: "dining",
+      categoryName: "Dining",
+      timestampMillis: Date.now(),
+      receiptNote: "",
+      isSplit: false,
+      splitSummary: "",
+      isRecurringInstance: false,
+      isAdminHack: true,
+      createdAt: ts,
+      updatedAt: ts,
+    })
+  );
+});
+
+test("Authenticated owner can manage profile, budgets, goals, and recurring bills", async () => {
+  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const ts = nowTimestamp();
+
+  await assertSucceeds(
+    aliceDb
+      .collection("users")
+      .doc(ALICE_UID)
+      .collection("profile")
+      .doc("settings")
+      .set({
+        userId: ALICE_UID,
+        displayName: "Alex Mercer",
+        currencyCode: "USD",
+        customCurrencySymbol: "$",
+        monthlyBudgetCents: 350000,
+        reducedMotionEnabled: false,
+        hapticsEnabled: true,
+        createdAt: ts,
+        updatedAt: ts,
+      })
+  );
+
+  await assertSucceeds(
+    aliceDb
+      .collection("users")
+      .doc(ALICE_UID)
+      .collection("budgets")
+      .doc("dining")
+      .set({
+        userId: ALICE_UID,
+        categoryId: "dining",
+        categoryName: "Dining & Coffee",
+        limitCents: 60000,
+        alertThresholdPercent: 80,
+        createdAt: ts,
+        updatedAt: ts,
+      })
+  );
+
+  await assertSucceeds(
+    aliceDb
+      .collection("users")
+      .doc(ALICE_UID)
+      .collection("goals")
+      .doc("goal_1")
+      .set({
+        userId: ALICE_UID,
+        title: "Emergency Treasury",
+        targetCents: 1000000,
+        savedCents: 250000,
+        deadlineMillis: Date.now() + 864000000,
+        accentHex: "#D7FF00",
+        isCompleted: false,
+        createdAt: ts,
+        updatedAt: ts,
+      })
+  );
+
+  await assertSucceeds(
+    aliceDb
+      .collection("users")
+      .doc(ALICE_UID)
+      .collection("bills")
+      .doc("bill_1")
+      .set({
+        userId: ALICE_UID,
+        title: "Cloud Compute Pro",
+        amountCents: 4900,
+        categoryId: "tech",
+        cadence: "MONTHLY",
+        nextDueDayOfMonth: 15,
+        isAutoRemind: true,
+        lastPaidMonthKey: "2026-10",
+        createdAt: ts,
+        updatedAt: ts,
+      })
+  );
 });

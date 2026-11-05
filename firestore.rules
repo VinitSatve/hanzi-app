@@ -1,11 +1,14 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Global default-deny safety net
+
+    // Global Default-Deny Safety Net
     match /{document=**} {
       allow read, write: if false;
     }
 
+    // Hardened Global Helpers
     function isSignedIn() {
       return request.auth != null;
     }
@@ -26,172 +29,242 @@ service cloud.firestore {
       return resource.data;
     }
 
-    function isBoundedStringList(arr, maxLen) {
-      return arr is list && arr.size() <= maxLen && (arr.size() == 0 || arr[0] is string);
-    }
-
-    function isValidUserProfile(data, userId) {
-      return data.userId is string && data.userId == userId && data.userId == request.auth.uid &&
+    // 1. MonoUserProfile Validation
+    function isValidMonoUserProfile(data) {
+      return data.userId is string && data.userId == request.auth.uid && data.userId.size() <= 128 &&
              data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
-             data.scriptMode is string && (data.scriptMode == 'SIMPLIFIED' || data.scriptMode == 'TRADITIONAL') &&
-             data.hskStandard is string && (data.hskStandard == 'HSK_2' || data.hskStandard == 'HSK_3') &&
-             data.currentHskLevel is int && data.currentHskLevel >= 1 && data.currentHskLevel <= 6 &&
-             data.dailyGoalMinutes is int && data.dailyGoalMinutes >= 5 && data.dailyGoalMinutes <= 240 &&
-             data.studyMinutesToday is int && data.studyMinutesToday >= 0 && data.studyMinutesToday <= 1440 &&
-             data.totalStudyMinutes is int && data.totalStudyMinutes >= 0 && data.totalStudyMinutes <= 1000000 &&
-             data.streakDays is int && data.streakDays >= 0 && data.streakDays <= 10000 &&
-             data.points is int && data.points >= 0 && data.points <= 10000000 &&
-             isBoundedStringList(data.completedLessonIds, 200) &&
-             isBoundedStringList(data.masteredCharacterIds, 500) &&
-             isBoundedStringList(data.unlockedBadgeIds, 100) &&
-             isBoundedStringList(data.downloadedPackIds, 100) &&
-             data.listeningAccuracy is int && data.listeningAccuracy >= 0 && data.listeningAccuracy <= 100 &&
-             data.readingAccuracy is int && data.readingAccuracy >= 0 && data.readingAccuracy <= 100 &&
-             data.speakingAccuracy is int && data.speakingAccuracy >= 0 && data.speakingAccuracy <= 100 &&
+             data.currencyCode is string && data.currencyCode in ['USD', 'EUR', 'GBP', 'JPY', 'INR', 'KRW', 'CHF', 'CUSTOM'] &&
+             data.customCurrencySymbol is string && data.customCurrencySymbol.size() >= 1 && data.customCurrencySymbol.size() <= 8 &&
+             data.monthlyBudgetCents is int && data.monthlyBudgetCents >= 0 && data.monthlyBudgetCents <= 100000000000 &&
+             data.reducedMotionEnabled is bool &&
+             data.hapticsEnabled is bool &&
              data.createdAt is timestamp && data.createdAt <= request.time &&
              data.updatedAt is timestamp && data.updatedAt <= request.time;
     }
 
-    function isValidFlashcardItem(data, userId) {
-      return data.userId is string && data.userId == userId && data.userId == request.auth.uid &&
-             data.simplified is string && data.simplified.size() >= 1 && data.simplified.size() <= 50 &&
-             data.traditional is string && data.traditional.size() >= 1 && data.traditional.size() <= 50 &&
-             data.pinyin is string && data.pinyin.size() >= 1 && data.pinyin.size() <= 100 &&
-             data.english is string && data.english.size() >= 1 && data.english.size() <= 300 &&
-             data.partOfSpeech is string && data.partOfSpeech.size() >= 1 && data.partOfSpeech.size() <= 50 &&
-             data.exampleChinese is string && data.exampleChinese.size() <= 300 &&
-             data.examplePinyin is string && data.examplePinyin.size() <= 300 &&
-             data.exampleEnglish is string && data.exampleEnglish.size() <= 300 &&
-             data.hskLevel is int && data.hskLevel >= 1 && data.hskLevel <= 6 &&
-             data.category is string && data.category.size() >= 1 && data.category.size() <= 60 &&
-             data.status is string && (data.status == 'NEW' || data.status == 'LEARNING' || data.status == 'PRACTICING' || data.status == 'FAMILIAR' || data.status == 'MASTERED') &&
-             data.intervalDays is int && data.intervalDays >= 0 && data.intervalDays <= 3650 &&
-             data.easeFactor is int && data.easeFactor >= 130 && data.easeFactor <= 400 &&
-             data.repetitions is int && data.repetitions >= 0 && data.repetitions <= 10000 &&
-             data.nextReviewEpochDay is int && data.nextReviewEpochDay >= 0 && data.nextReviewEpochDay <= 100000 &&
-             data.isFavorite is bool &&
-             data.createdAt is timestamp && data.createdAt <= request.time &&
-             data.updatedAt is timestamp && data.updatedAt <= request.time;
-    }
-
-    function isValidPersonalNote(data, userId) {
-      return data.userId is string && data.userId == userId && data.userId == request.auth.uid &&
+    // 2. MonoTransaction Validation
+    function isValidMonoTransaction(data) {
+      return data.userId is string && data.userId == request.auth.uid && data.userId.size() <= 128 &&
              data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
-             data.chineseSentence is string && data.chineseSentence.size() >= 1 && data.chineseSentence.size() <= 500 &&
-             data.pinyin is string && data.pinyin.size() <= 500 &&
-             data.englishTranslation is string && data.englishTranslation.size() <= 500 &&
-             data.grammarNotes is string && data.grammarNotes.size() <= 2000 &&
-             data.folder is string && data.folder.size() >= 1 && data.folder.size() <= 60 &&
+             data.amountCents is int && data.amountCents > 0 && data.amountCents <= 100000000000 &&
+             data.type is string && data.type in ['EXPENSE', 'INCOME'] &&
+             data.categoryId is string && data.categoryId.size() >= 1 && data.categoryId.size() <= 64 &&
+             data.categoryName is string && data.categoryName.size() >= 1 && data.categoryName.size() <= 64 &&
+             data.timestampMillis is int && data.timestampMillis > 0 &&
+             data.receiptNote is string && data.receiptNote.size() <= 500 &&
+             data.isSplit is bool &&
+             data.splitSummary is string && data.splitSummary.size() <= 500 &&
+             data.isRecurringInstance is bool &&
              data.createdAt is timestamp && data.createdAt <= request.time &&
              data.updatedAt is timestamp && data.updatedAt <= request.time;
     }
 
+    // 3. MonoCategoryBudget Validation
+    function isValidMonoCategoryBudget(data) {
+      return data.userId is string && data.userId == request.auth.uid && data.userId.size() <= 128 &&
+             data.categoryId is string && data.categoryId.size() >= 1 && data.categoryId.size() <= 64 &&
+             data.categoryName is string && data.categoryName.size() >= 1 && data.categoryName.size() <= 64 &&
+             data.limitCents is int && data.limitCents > 0 && data.limitCents <= 100000000000 &&
+             data.alertThresholdPercent is int && data.alertThresholdPercent >= 10 && data.alertThresholdPercent <= 100 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // 4. MonoSavingsGoal Validation
+    function isValidMonoSavingsGoal(data) {
+      return data.userId is string && data.userId == request.auth.uid && data.userId.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+             data.targetCents is int && data.targetCents > 0 && data.targetCents <= 100000000000 &&
+             data.savedCents is int && data.savedCents >= 0 && data.savedCents <= 100000000000 &&
+             data.deadlineMillis is int && data.deadlineMillis >= 0 &&
+             data.accentHex is string && data.accentHex.size() >= 4 && data.accentHex.size() <= 12 &&
+             data.isCompleted is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // 5. MonoRecurringBill Validation
+    function isValidMonoRecurringBill(data) {
+      return data.userId is string && data.userId == request.auth.uid && data.userId.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+             data.amountCents is int && data.amountCents > 0 && data.amountCents <= 100000000000 &&
+             data.categoryId is string && data.categoryId.size() >= 1 && data.categoryId.size() <= 64 &&
+             data.cadence is string && data.cadence in ['MONTHLY', 'WEEKLY', 'YEARLY'] &&
+             data.nextDueDayOfMonth is int && data.nextDueDayOfMonth >= 1 && data.nextDueDayOfMonth <= 31 &&
+             data.isAutoRemind is bool &&
+             data.lastPaidMonthKey is string && data.lastPaidMonthKey.size() <= 16 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // User-scoped collections
     match /users/{userId} {
-      allow get: if isOwner(userId) && isValidId(userId);
-      allow list: if isOwner(userId) && isValidId(userId);
 
-      allow create: if isOwner(userId) &&
-                       isValidId(userId) &&
-                       incoming().keys().hasAll([
-                         'userId', 'displayName', 'scriptMode', 'hskStandard', 'currentHskLevel',
-                         'dailyGoalMinutes', 'studyMinutesToday', 'totalStudyMinutes', 'streakDays',
-                         'points', 'completedLessonIds', 'masteredCharacterIds', 'unlockedBadgeIds',
-                         'downloadedPackIds', 'listeningAccuracy', 'readingAccuracy', 'speakingAccuracy',
-                         'createdAt', 'updatedAt'
-                       ]) &&
-                       incoming().keys().hasOnly([
-                         'userId', 'displayName', 'scriptMode', 'hskStandard', 'currentHskLevel',
-                         'dailyGoalMinutes', 'studyMinutesToday', 'totalStudyMinutes', 'streakDays',
-                         'points', 'completedLessonIds', 'masteredCharacterIds', 'unlockedBadgeIds',
-                         'downloadedPackIds', 'listeningAccuracy', 'readingAccuracy', 'speakingAccuracy',
-                         'createdAt', 'updatedAt'
-                       ]) &&
-                       isValidUserProfile(incoming(), userId);
-
-      allow update: if isOwner(userId) &&
-                       isValidId(userId) &&
-                       isValidUserProfile(incoming(), userId) &&
-                       incoming().userId == existing().userId &&
-                       incoming().createdAt == existing().createdAt &&
-                       incoming().diff(existing()).affectedKeys().hasOnly([
-                         'displayName', 'scriptMode', 'hskStandard', 'currentHskLevel',
-                         'dailyGoalMinutes', 'studyMinutesToday', 'totalStudyMinutes', 'streakDays',
-                         'points', 'completedLessonIds', 'masteredCharacterIds', 'unlockedBadgeIds',
-                         'downloadedPackIds', 'listeningAccuracy', 'readingAccuracy', 'speakingAccuracy',
-                         'updatedAt'
-                       ]);
-
-      allow delete: if isOwner(userId) && isValidId(userId);
-
-      match /flashcards/{cardId} {
-        allow get: if isOwner(userId) && isValidId(userId) && isValidId(cardId);
-        allow list: if isOwner(userId) && isValidId(userId);
+      match /profile/{docId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(docId) && (resource == null || existing().userId == request.auth.uid);
+        allow list: if isOwner(userId) && existing().userId == request.auth.uid;
 
         allow create: if isOwner(userId) &&
                          isValidId(userId) &&
-                         isValidId(cardId) &&
+                         isValidId(docId) &&
                          incoming().keys().hasAll([
-                           'userId', 'simplified', 'traditional', 'pinyin', 'english',
-                           'partOfSpeech', 'exampleChinese', 'examplePinyin', 'exampleEnglish',
-                           'hskLevel', 'category', 'status', 'intervalDays', 'easeFactor',
-                           'repetitions', 'nextReviewEpochDay', 'isFavorite', 'createdAt', 'updatedAt'
-                         ]) &&
-                         incoming().keys().hasOnly([
-                           'userId', 'simplified', 'traditional', 'pinyin', 'english',
-                           'partOfSpeech', 'exampleChinese', 'examplePinyin', 'exampleEnglish',
-                           'hskLevel', 'category', 'status', 'intervalDays', 'easeFactor',
-                           'repetitions', 'nextReviewEpochDay', 'isFavorite', 'createdAt', 'updatedAt'
-                         ]) &&
-                         isValidFlashcardItem(incoming(), userId);
-
-        allow update: if isOwner(userId) &&
-                         isValidId(userId) &&
-                         isValidId(cardId) &&
-                         isValidFlashcardItem(incoming(), userId) &&
-                         incoming().userId == existing().userId &&
-                         incoming().createdAt == existing().createdAt &&
-                         incoming().diff(existing()).affectedKeys().hasOnly([
-                           'simplified', 'traditional', 'pinyin', 'english',
-                           'partOfSpeech', 'exampleChinese', 'examplePinyin', 'exampleEnglish',
-                           'hskLevel', 'category', 'status', 'intervalDays', 'easeFactor',
-                           'repetitions', 'nextReviewEpochDay', 'isFavorite', 'updatedAt'
-                         ]);
-
-        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(cardId);
-      }
-
-      match /notes/{noteId} {
-        allow get: if isOwner(userId) && isValidId(userId) && isValidId(noteId);
-        allow list: if isOwner(userId) && isValidId(userId);
-
-        allow create: if isOwner(userId) &&
-                         isValidId(userId) &&
-                         isValidId(noteId) &&
-                         incoming().keys().hasAll([
-                           'userId', 'title', 'chineseSentence', 'pinyin',
-                           'englishTranslation', 'grammarNotes', 'folder',
+                           'userId', 'displayName', 'currencyCode', 'customCurrencySymbol',
+                           'monthlyBudgetCents', 'reducedMotionEnabled', 'hapticsEnabled',
                            'createdAt', 'updatedAt'
                          ]) &&
                          incoming().keys().hasOnly([
-                           'userId', 'title', 'chineseSentence', 'pinyin',
-                           'englishTranslation', 'grammarNotes', 'folder',
+                           'userId', 'displayName', 'currencyCode', 'customCurrencySymbol',
+                           'monthlyBudgetCents', 'reducedMotionEnabled', 'hapticsEnabled',
                            'createdAt', 'updatedAt'
                          ]) &&
-                         isValidPersonalNote(incoming(), userId);
+                         isValidMonoUserProfile(incoming());
 
         allow update: if isOwner(userId) &&
                          isValidId(userId) &&
-                         isValidId(noteId) &&
-                         isValidPersonalNote(incoming(), userId) &&
+                         isValidId(docId) &&
+                         isValidMonoUserProfile(incoming()) &&
                          incoming().userId == existing().userId &&
                          incoming().createdAt == existing().createdAt &&
                          incoming().diff(existing()).affectedKeys().hasOnly([
-                           'title', 'chineseSentence', 'pinyin',
-                           'englishTranslation', 'grammarNotes', 'folder',
+                           'displayName', 'currencyCode', 'customCurrencySymbol',
+                           'monthlyBudgetCents', 'reducedMotionEnabled', 'hapticsEnabled',
                            'updatedAt'
                          ]);
 
-        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(noteId);
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(docId);
+      }
+
+      match /transactions/{transactionId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(transactionId) && (resource == null || existing().userId == request.auth.uid);
+        allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+
+        allow create: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(transactionId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'title', 'amountCents', 'type', 'categoryId',
+                           'categoryName', 'timestampMillis', 'receiptNote', 'isSplit',
+                           'splitSummary', 'isRecurringInstance', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'title', 'amountCents', 'type', 'categoryId',
+                           'categoryName', 'timestampMillis', 'receiptNote', 'isSplit',
+                           'splitSummary', 'isRecurringInstance', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidMonoTransaction(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(transactionId) &&
+                         isValidMonoTransaction(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'title', 'amountCents', 'type', 'categoryId',
+                           'categoryName', 'timestampMillis', 'receiptNote', 'isSplit',
+                           'splitSummary', 'isRecurringInstance', 'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(transactionId) && existing().userId == request.auth.uid;
+      }
+
+      match /budgets/{budgetId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(budgetId) && (resource == null || existing().userId == request.auth.uid);
+        allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+
+        allow create: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(budgetId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'categoryId', 'categoryName', 'limitCents',
+                           'alertThresholdPercent', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'categoryId', 'categoryName', 'limitCents',
+                           'alertThresholdPercent', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidMonoCategoryBudget(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(budgetId) &&
+                         isValidMonoCategoryBudget(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'categoryId', 'categoryName', 'limitCents',
+                           'alertThresholdPercent', 'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(budgetId) && existing().userId == request.auth.uid;
+      }
+
+      match /goals/{goalId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(goalId) && (resource == null || existing().userId == request.auth.uid);
+        allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+
+        allow create: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(goalId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'title', 'targetCents', 'savedCents',
+                           'deadlineMillis', 'accentHex', 'isCompleted',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'title', 'targetCents', 'savedCents',
+                           'deadlineMillis', 'accentHex', 'isCompleted',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidMonoSavingsGoal(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(goalId) &&
+                         isValidMonoSavingsGoal(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'title', 'targetCents', 'savedCents',
+                           'deadlineMillis', 'accentHex', 'isCompleted',
+                           'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(goalId) && existing().userId == request.auth.uid;
+      }
+
+      match /bills/{billId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(billId) && (resource == null || existing().userId == request.auth.uid);
+        allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+
+        allow create: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(billId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'title', 'amountCents', 'categoryId',
+                           'cadence', 'nextDueDayOfMonth', 'isAutoRemind',
+                           'lastPaidMonthKey', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'title', 'amountCents', 'categoryId',
+                           'cadence', 'nextDueDayOfMonth', 'isAutoRemind',
+                           'lastPaidMonthKey', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidMonoRecurringBill(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(billId) &&
+                         isValidMonoRecurringBill(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'title', 'amountCents', 'categoryId',
+                           'cadence', 'nextDueDayOfMonth', 'isAutoRemind',
+                           'lastPaidMonthKey', 'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(billId) && existing().userId == request.auth.uid;
       }
     }
   }

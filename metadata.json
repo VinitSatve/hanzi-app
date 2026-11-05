@@ -1,6 +1,6 @@
 {
-  "name": "Hanzi",
-  "description": "Personal Mandarin Chinese learning system featuring HSK 1-6 curriculum, Pinyin Academy, Hanzi Character Studio, Spaced Repetition, Personal Notebook, and AI Mandarin Tutor.",
+  "name": "MONO",
+  "description": "Premium Dark Neo-Brutalist + Acid Lime personal finance, expense, budget, recurring bill, and savings vault tracker with spring-physics motion and native Android haptics.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

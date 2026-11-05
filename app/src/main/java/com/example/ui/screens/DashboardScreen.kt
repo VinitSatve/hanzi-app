@@ -1,13 +1,17 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.Image
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,603 +22,910 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.CallSplit
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.example.R
-import com.example.data.curriculum.CurriculumCatalog
-import com.example.data.curriculum.CurriculumExtras
-import com.example.data.model.FlashcardItem
-import com.example.data.model.UserProfile
-import com.example.ui.theme.BrutalBlack
-import com.example.ui.theme.BrutalCobalt
-import com.example.ui.theme.BrutalMint
-import com.example.ui.theme.BrutalOrange
-import com.example.ui.theme.BrutalWhite
-import com.example.ui.theme.BrutalYellow
-import com.example.ui.theme.NeoBrutalBadge
-import com.example.ui.theme.NeoBrutalButton
-import com.example.ui.theme.NeoBrutalCard
-import com.example.ui.theme.NeoBrutalChip
-import com.example.ui.theme.NeoBrutalIconButton
-import com.example.ui.theme.NeoBrutalProgressBar
-import com.example.ui.theme.neoBrutalSurface
+import com.example.data.model.MonoCatalog
+import com.example.data.model.MonoRecurringBill
+import com.example.data.model.MonoSavingsGoal
+import com.example.data.model.MonoTransaction
+import com.example.data.model.MonoUserProfile
+import com.example.ui.theme.AcidLime
+import com.example.ui.theme.AcidLimeSurface
+import com.example.ui.theme.AlabasterWhite
+import com.example.ui.theme.CyberMint
+import com.example.ui.theme.CyberMintSurface
+import com.example.ui.theme.MonoBadge
+import com.example.ui.theme.MonoBlack
+import com.example.ui.theme.MonoBorderStructural
+import com.example.ui.theme.MonoButton
+import com.example.ui.theme.MonoCard
+import com.example.ui.theme.MonoObsidian
+import com.example.ui.theme.MonoSlateCard
+import com.example.ui.theme.MonoStripedProgressBar
+import com.example.ui.theme.MutedZinc
+import com.example.ui.theme.SignalCrimson
+import com.example.ui.theme.SignalCrimsonSurface
+import com.example.ui.theme.VoltageAmber
+import com.example.ui.theme.VoltageAmberSurface
+import com.example.ui.viewmodel.DateRangeFilter
+import com.example.util.AnimatedFinancialAmount
+import com.example.util.AnimatedPercentageText
+import com.example.util.MonoShimmerSkeleton
+import com.example.util.rememberMonoHaptics
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlin.math.roundToLong
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DashboardScreen(
-    profile: UserProfile,
-    flashcards: List<FlashcardItem>,
-    isDarkTheme: Boolean,
-    onToggleDarkTheme: () -> Unit,
-    onToggleScriptMode: () -> Unit,
-    onToggleHskStandard: () -> Unit,
-    onSelectHskLevel: (Int) -> Unit,
-    onContinueLearning: () -> Unit,
-    onOpenSpeakingCenter: () -> Unit,
-    onOpenFlashcardReview: () -> Unit,
-    onOpenAiTutor: () -> Unit,
-    onSpeakSample: (String) -> Unit
+    profile: MonoUserProfile,
+    transactions: List<MonoTransaction>,
+    goals: List<MonoSavingsGoal>,
+    bills: List<MonoRecurringBill>,
+    isLoadingInitialData: Boolean,
+    selectedDateFilter: DateRangeFilter,
+    monthLabel: String,
+    currentMonthKey: String,
+    onSelectDateFilter: (DateRangeFilter) -> Unit,
+    onStepMonth: (Int) -> Unit,
+    onRefresh: () -> Unit,
+    onOpenAddTransaction: (MonoTransaction?) -> Unit,
+    onNavigateToAnalytics: () -> Unit,
+    onNavigateToHistory: () -> Unit,
+    onNavigateToVaults: () -> Unit,
+    onUpdateMonthlyBudget: (Long) -> Unit,
+    onMarkBillPaid: (MonoRecurringBill) -> Unit,
+    onDeleteTransaction: (MonoTransaction) -> Unit
 ) {
-    val isTraditional = profile.scriptMode == "TRADITIONAL"
-    val todayEpoch = System.currentTimeMillis() / 86_400_000L
-    val dueFlashcardsCount = flashcards.count { it.nextReviewEpochDay <= todayEpoch }
-    val masteredVocabCount = flashcards.count { it.status == "MASTERED" }
-    val totalLessons = CurriculumCatalog.lessons.size
-    val completedLessonsCount = profile.completedLessonIds.size
+    val haptics = rememberMonoHaptics()
+    var isBudgetCardExpanded by remember { mutableStateOf(false) }
+    var budgetDraftText by remember(profile.monthlyBudgetCents) {
+        mutableStateOf((profile.monthlyBudgetCents / 100L).toString())
+    }
+    var expandedTransactionId by remember { mutableStateOf<String?>(null) }
+    var horizontalSwipeAccum by remember { mutableFloatStateOf(0f) }
 
-    val recommendedLesson = CurriculumCatalog.lessons.firstOrNull {
-        !profile.completedLessonIds.contains(it.id)
-    } ?: CurriculumCatalog.lessons.first()
+    val totalIncomeCents = remember(transactions) {
+        transactions.filter { it.type == "INCOME" }.sumOf { it.amountCents }
+    }
+    val totalExpenseCents = remember(transactions) {
+        transactions.filter { it.type == "EXPENSE" }.sumOf { it.amountCents }
+    }
+    val netBalanceCents = totalIncomeCents - totalExpenseCents
 
-    val studyProgress = (profile.studyMinutesToday.toFloat() / maxOf(1L, profile.dailyGoalMinutes).toFloat())
-        .coerceIn(0f, 1f)
+    val budgetLimit = profile.monthlyBudgetCents.coerceAtLeast(100L)
+    val budgetRatio = (totalExpenseCents.toFloat() / budgetLimit.toFloat()).coerceAtLeast(0f)
+    val budgetPercentInt = (budgetRatio * 100f).toInt()
+    val isOverBudget = totalExpenseCents > budgetLimit
+    val isWarningBudget = !isOverBudget && budgetRatio >= 0.80f
+
+    val unpaidBillsThisMonth = remember(bills, currentMonthKey) {
+        bills.filter { it.lastPaidMonthKey != currentMonthKey }
+    }
+
+    val totalSavedCents = remember(goals) { goals.sumOf { it.savedCents } }
+    val totalGoalTargetCents = remember(goals) { goals.sumOf { it.targetCents }.coerceAtLeast(1L) }
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+            .background(MonoBlack)
+            .testTag("dashboard_screen"),
+        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
-            // Neo-Brutalist Editorial Masthead
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        NeoBrutalBadge(
-                            text = if (isTraditional) "漢字 · HANZI" else "汉字 · HANZI",
-                            backgroundColor = BrutalYellow,
-                            textColor = BrutalBlack
-                        )
-                        NeoBrutalBadge(
-                            text = if (profile.hskStandard == "HSK_2") "HSK 2.0" else "HSK 3.0",
-                            backgroundColor = BrutalCobalt,
-                            textColor = Color.White
+        // 1. Top Terminal Bar + Month Swipe Header + Date Range Filter
+        item(key = "header_bar") {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { horizontalSwipeAccum = 0f },
+                            onHorizontalDrag = { _, dragAmount ->
+                                horizontalSwipeAccum += dragAmount
+                            },
+                            onDragEnd = {
+                                if (horizontalSwipeAccum > 95f) {
+                                    haptics.lightTap()
+                                    onStepMonth(-1)
+                                } else if (horizontalSwipeAccum < -95f) {
+                                    haptics.lightTap()
+                                    onStepMonth(1)
+                                }
+                                horizontalSwipeAccum = 0f
+                            }
                         )
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "NI HAO,\n${profile.displayName.uppercase()}",
-                        style = MaterialTheme.typography.headlineLarge,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        MonoBadge(
+                            text = "MONO // LEDGER",
+                            backgroundColor = AcidLime,
+                            borderColor = AcidLime,
+                            textColor = MonoBlack
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        MonoBadge(
+                            text = profile.currencyCode,
+                            backgroundColor = MonoSlateCard,
+                            borderColor = MonoBorderStructural,
+                            textColor = AlabasterWhite
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = {
+                                haptics.lightTap()
+                                onRefresh()
+                            },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .testTag("refresh_ledger_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Sync ledger",
+                                tint = MutedZinc
+                            )
+                        }
+                    }
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    NeoBrutalIconButton(
-                        onClick = onToggleScriptMode,
-                        backgroundColor = BrutalYellow,
-                        contentColor = BrutalBlack,
-                        modifier = Modifier.testTag("toggle_script_button")
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Month Navigator + Date Range Filter Pills
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(MonoObsidian)
+                            .border(1.dp, MonoBorderStructural, RoundedCornerShape(6.dp))
                     ) {
+                        IconButton(
+                            onClick = {
+                                haptics.lightTap()
+                                onStepMonth(-1)
+                            },
+                            modifier = Modifier
+                                .size(38.dp)
+                                .testTag("prev_month_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                                contentDescription = "Previous month",
+                                tint = AlabasterWhite
+                            )
+                        }
                         Text(
-                            text = if (isTraditional) "繁" else "简",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = BrutalBlack
+                            text = monthLabel,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = AcidLime,
+                            modifier = Modifier.padding(horizontal = 6.dp)
                         )
+                        IconButton(
+                            onClick = {
+                                haptics.lightTap()
+                                onStepMonth(1)
+                            },
+                            modifier = Modifier
+                                .size(38.dp)
+                                .testTag("next_month_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = "Next month",
+                                tint = AlabasterWhite
+                            )
+                        }
                     }
-                    NeoBrutalIconButton(
-                        onClick = onToggleDarkTheme,
-                        backgroundColor = BrutalOrange,
-                        contentColor = Color.White,
-                        modifier = Modifier.testTag("toggle_theme_button")
-                    ) {
-                        Icon(
-                            imageVector = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
-                            contentDescription = "Toggle Dark or Light Theme",
-                            tint = Color.White
-                        )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        DateRangeFilter.entries.forEach { filter ->
+                            val selected = selectedDateFilter == filter
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (selected) AcidLime else MonoObsidian)
+                                    .border(
+                                        1.dp,
+                                        if (selected) AcidLime else MonoBorderStructural,
+                                        RoundedCornerShape(6.dp)
+                                    )
+                                    .clickable {
+                                        haptics.mediumImpact()
+                                        onSelectDateFilter(filter)
+                                    }
+                                    .padding(horizontal = 9.dp, vertical = 7.dp)
+                                    .testTag("date_filter_${filter.name.lowercase()}"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = filter.label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (selected) MonoBlack else MutedZinc,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
 
-        // Asymmetric Gamification & Daily Study Target Block
-        item {
-            NeoBrutalCard(
-                modifier = Modifier.fillMaxWidth(),
-                backgroundColor = MaterialTheme.colorScheme.surface,
-                accentHeaderColor = BrutalYellow,
-                headerTitle = "DAILY TELEMETRY // STREAK & XP",
-                headerRightText = "ACTIVE",
-                shadowOffset = 5.dp
+        // 2. Oversized Net Balance Hero Card with Animated Financial Numbers
+        item(key = "hero_balance_card") {
+            MonoCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("hero_balance_card"),
+                backgroundColor = MonoObsidian,
+                borderColor = if (netBalanceCents >= 0L) AcidLime.copy(alpha = 0.7f) else SignalCrimson,
+                accentHeaderColor = AcidLime,
+                headerTitle = "NET PERIOD CASH FLOW",
+                headerRightText = "${transactions.size} ENTRIES"
             ) {
+                Text(
+                    text = "AVAILABLE NET BALANCE",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MutedZinc
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                AnimatedFinancialAmount(
+                    targetCents = netBalanceCents,
+                    profile = profile,
+                    style = MaterialTheme.typography.displayLarge,
+                    color = if (netBalanceCents < 0L) SignalCrimson else AlabasterWhite,
+                    showPlusForPositive = true,
+                    modifier = Modifier.testTag("hero_net_balance_text")
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Income vs Expense Split Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    BrutalStatPill(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Default.LocalFireDepartment,
-                        bgColor = BrutalOrange,
-                        fgColor = Color.White,
-                        value = "${profile.streakDays}D",
-                        label = "STREAK"
-                    )
-                    BrutalStatPill(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Default.Bolt,
-                        bgColor = BrutalYellow,
-                        fgColor = BrutalBlack,
-                        value = "${profile.points}",
-                        label = "TOTAL XP"
-                    )
-                    BrutalStatPill(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Default.School,
-                        bgColor = BrutalCobalt,
-                        fgColor = Color.White,
-                        value = "HSK ${profile.currentHskLevel}",
-                        label = if (profile.currentHskLevel <= 2L) "STAGE A1–A2" else if (profile.currentHskLevel <= 4L) "STAGE B1–B2" else "STAGE C1–C2"
-                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MonoSlateCard)
+                            .border(1.dp, MonoBorderStructural, RoundedCornerShape(8.dp))
+                            .padding(12.dp)
+                    ) {
+                        Column {
+                            Text(
+                                text = "INFLOW (+)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = CyberMint
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            AnimatedFinancialAmount(
+                                targetCents = totalIncomeCents,
+                                profile = profile,
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = CyberMint
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MonoSlateCard)
+                            .border(1.dp, MonoBorderStructural, RoundedCornerShape(8.dp))
+                            .padding(12.dp)
+                    ) {
+                        Column {
+                            Text(
+                                text = "OUTFLOW (-)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = AcidLime
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            AnimatedFinancialAmount(
+                                targetCents = totalExpenseCents,
+                                profile = profile,
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = AlabasterWhite
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
+                // Primary Action Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    MonoButton(
+                        text = "+ RECORD ENTRY",
+                        icon = Icons.Default.Add,
+                        backgroundColor = AcidLime,
+                        contentColor = MonoBlack,
+                        borderColor = AcidLime,
+                        height = 48.dp,
+                        useMediumHaptic = true,
+                        modifier = Modifier
+                            .weight(1.3f)
+                            .testTag("dashboard_add_transaction_button"),
+                        onClick = { onOpenAddTransaction(null) }
+                    )
+                    MonoButton(
+                        text = "TELEMETRY",
+                        icon = Icons.Default.Analytics,
+                        backgroundColor = MonoSlateCard,
+                        contentColor = AlabasterWhite,
+                        borderColor = MonoBorderStructural,
+                        height = 48.dp,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("dashboard_open_analytics_button"),
+                        onClick = onNavigateToAnalytics
+                    )
+                }
+            }
+        }
+
+        // 3. Interactive Monthly Budget Burn Card (Tap to Expand & Edit Limit)
+        item(key = "monthly_budget_card") {
+            val barColor = when {
+                isOverBudget -> SignalCrimson
+                isWarningBudget -> VoltageAmber
+                else -> AcidLime
+            }
+            MonoCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("monthly_budget_card"),
+                backgroundColor = MonoSlateCard,
+                borderColor = if (isOverBudget) SignalCrimson else MonoBorderStructural,
+                onClick = { isBudgetCardExpanded = !isBudgetCardExpanded }
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "DAILY TARGET · ${profile.studyMinutesToday} / ${profile.dailyGoalMinutes} MIN",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    NeoBrutalBadge(
-                        text = "${(studyProgress * 100).toInt()}%",
-                        backgroundColor = BrutalMint,
-                        textColor = BrutalBlack
-                    )
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "MONTHLY BURN GUARDRAIL",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = AlabasterWhite
+                            )
+                            if (isOverBudget) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.Default.WarningAmber,
+                                    contentDescription = "Budget exceeded",
+                                    tint = SignalCrimson,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        val remainingCents = (budgetLimit - totalExpenseCents)
+                        Text(
+                            text = if (remainingCents >= 0L) {
+                                "${MonoCatalog.formatMoney(remainingCents, profile)} remaining of ${MonoCatalog.formatMoney(budgetLimit, profile)}"
+                            } else {
+                                "EXCEEDED BY ${MonoCatalog.formatMoney(-remainingCents, profile)}"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isOverBudget) SignalCrimson else MutedZinc
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(
+                                when {
+                                    isOverBudget -> SignalCrimsonSurface
+                                    isWarningBudget -> VoltageAmberSurface
+                                    else -> AcidLimeSurface
+                                }
+                            )
+                            .border(1.dp, barColor, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        AnimatedPercentageText(
+                            targetPercent = budgetPercentInt,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = barColor
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
-                NeoBrutalProgressBar(
-                    progress = studyProgress,
-                    fillColor = BrutalMint,
-                    trackColor = BrutalWhite
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                MonoStripedProgressBar(
+                    progress = budgetRatio.coerceIn(0f, 1f),
+                    height = 16.dp,
+                    fillColor = barColor
                 )
+
+                AnimatedVisibility(
+                    visible = isBudgetCardExpanded,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    Column(modifier = Modifier.padding(top = 14.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(MonoBorderStructural)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "ADJUST MONTHLY BUDGET TARGET (${MonoCatalog.resolveSymbol(profile)})",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = AcidLime
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = budgetDraftText,
+                                onValueChange = { next ->
+                                    if (next.length <= 9 && next.all { it.isDigit() || it == '.' }) {
+                                        budgetDraftText = next
+                                    }
+                                },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = AcidLime,
+                                    unfocusedBorderColor = MonoBorderStructural,
+                                    focusedContainerColor = MonoBlack,
+                                    unfocusedContainerColor = MonoBlack
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("budget_limit_input")
+                            )
+                            MonoButton(
+                                text = "APPLY",
+                                backgroundColor = AcidLime,
+                                contentColor = MonoBlack,
+                                height = 50.dp,
+                                useMediumHaptic = true,
+                                modifier = Modifier.testTag("apply_budget_button"),
+                                onClick = {
+                                    val parsed = budgetDraftText.toDoubleOrNull() ?: 0.0
+                                    val cents = (parsed * 100.0).roundToLong().coerceAtLeast(1000L)
+                                    onUpdateMonthlyBudget(cents)
+                                    isBudgetCardExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
             }
         }
 
-        // Hero Recommended Lesson & Prominent Continue Learning Action
-        item {
-            NeoBrutalCard(
+        // 4. Savings Vaults & Upcoming Recurring Bills Dual Strip
+        item(key = "vaults_and_bills_strip") {
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                backgroundColor = BrutalCobalt,
-                accentHeaderColor = BrutalOrange,
-                headerTitle = "NEXT MANDARIN MISSION // STAGE ${recommendedLesson.stage}",
-                headerRightText = "PRIORITY 01",
-                shadowOffset = 6.dp,
-                borderWidth = 3.dp,
-                contentPadding = PaddingValues(0.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(125.dp)
+                MonoCard(
+                    modifier = Modifier.weight(1f),
+                    backgroundColor = MonoSlateCard,
+                    onClick = onNavigateToVaults,
+                    contentPadding = PaddingValues(14.dp)
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.img_neobrutal_hero_hanzi_1793857326334),
-                        contentDescription = "Recommended next lesson Neo-Brutalist banner",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Savings,
+                            contentDescription = null,
+                            tint = CyberMint,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "SAVINGS VAULTS",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = CyberMint
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    AnimatedFinancialAmount(
+                        targetCents = totalSavedCents,
+                        profile = profile,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = AlabasterWhite
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    val vaultRatio = (totalSavedCents.toFloat() / totalGoalTargetCents.toFloat()).coerceIn(0f, 1f)
+                    MonoStripedProgressBar(
+                        progress = vaultRatio,
+                        height = 8.dp,
+                        fillColor = CyberMint
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "${goals.size} active goals · ${(vaultRatio * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MutedZinc
                     )
                 }
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(3.dp)
-                        .background(BrutalBlack)
-                )
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(BrutalCobalt)
-                        .padding(16.dp)
+
+                MonoCard(
+                    modifier = Modifier.weight(1f),
+                    backgroundColor = MonoSlateCard,
+                    onClick = onNavigateToVaults,
+                    contentPadding = PaddingValues(14.dp)
+                ) {
+                    Text(
+                        text = "RECURRING BILLS",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = VoltageAmber
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    val dueTotal = unpaidBillsThisMonth.sumOf { it.amountCents }
+                    AnimatedFinancialAmount(
+                        targetCents = dueTotal,
+                        profile = profile,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = AlabasterWhite
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = if (unpaidBillsThisMonth.isEmpty()) {
+                            "All ${bills.size} bills settled"
+                        } else {
+                            "${unpaidBillsThisMonth.size} upcoming due"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (unpaidBillsThisMonth.isEmpty()) CyberMint else VoltageAmber
+                    )
+                }
+            }
+        }
+
+        // Unpaid Recurring Bills Quick-Pay Strip (if any)
+        if (unpaidBillsThisMonth.isNotEmpty()) {
+            item(key = "upcoming_bills_quick_pay") {
+                val nextBill = unpaidBillsThisMonth.first()
+                MonoCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    backgroundColor = MonoObsidian,
+                    borderColor = VoltageAmber.copy(alpha = 0.7f),
+                    contentPadding = PaddingValues(14.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Top
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = recommendedLesson.title.uppercase(),
-                                style = MaterialTheme.typography.headlineMedium,
-                                color = Color.White
+                                text = "DUE DAY ${nextBill.nextDueDayOfMonth} // ${nextBill.cadence}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = VoltageAmber
                             )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Box(
-                                modifier = Modifier
-                                    .neoBrutalSurface(
-                                        backgroundColor = BrutalWhite,
-                                        borderColor = BrutalBlack,
-                                        shadowColor = BrutalBlack,
-                                        borderWidth = 2.dp,
-                                        shadowOffset = 3.dp
-                                    )
-                                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                            ) {
-                                Column {
-                                    Text(
-                                        text = if (isTraditional) recommendedLesson.traditionalFocus else recommendedLesson.chineseFocus,
-                                        style = MaterialTheme.typography.headlineLarge,
-                                        color = BrutalBlack
-                                    )
-                                    Text(
-                                        text = recommendedLesson.pinyinFocus,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = BrutalOrange
-                                    )
-                                }
-                            }
+                            Text(
+                                text = nextBill.title,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = AlabasterWhite
+                            )
+                            Text(
+                                text = MonoCatalog.formatMoney(nextBill.amountCents, profile),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = AcidLime
+                            )
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        NeoBrutalIconButton(
+                        MonoButton(
+                            text = "MARK PAID",
+                            icon = Icons.Default.CheckCircle,
+                            backgroundColor = AcidLime,
+                            contentColor = MonoBlack,
+                            height = 42.dp,
+                            useMediumHaptic = true,
                             onClick = {
-                                onSpeakSample(
-                                    if (isTraditional) recommendedLesson.traditionalFocus
-                                    else recommendedLesson.chineseFocus
-                                )
-                            },
-                            backgroundColor = BrutalYellow,
-                            contentColor = BrutalBlack
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.VolumeUp,
-                                contentDescription = "Listen to lesson phrase",
-                                tint = BrutalBlack
-                            )
-                        }
+                                haptics.success()
+                                onMarkBillPaid(nextBill)
+                            }
+                        )
                     }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    NeoBrutalButton(
-                        text = "CONTINUE LEARNING (+40 XP)",
-                        icon = Icons.Default.PlayArrow,
-                        backgroundColor = BrutalYellow,
-                        contentColor = BrutalBlack,
-                        onClick = onContinueLearning,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("continue_learning_button")
-                    )
                 }
             }
         }
 
-        // HSK Level & Standard Switcher
-        item {
-            NeoBrutalCard(
+        // 5. Recent Activity Section Header
+        item(key = "recent_header") {
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                accentHeaderColor = BrutalMint,
-                headerTitle = "TARGET PROFICIENCY & HSK STANDARD",
-                headerRightText = if (profile.hskStandard == "HSK_2") "HSK 2.0" else "HSK 3.0"
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
+                Text(
+                    text = "RECENT LEDGER STREAM",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = AlabasterWhite
+                )
+                Text(
+                    text = "VIEW FULL LEDGER →",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AcidLime,
+                    modifier = Modifier
+                        .clickable {
+                            haptics.lightTap()
+                            onNavigateToHistory()
+                        }
+                        .padding(vertical = 4.dp)
+                        .testTag("view_full_ledger_link")
+                )
+            }
+        }
+
+        // 6. Skeleton Loading OR Empty State OR Animated Transaction List
+        if (isLoadingInitialData && transactions.isEmpty()) {
+            items(3, key = { "shimmer_$it" }) {
+                MonoShimmerSkeleton(height = 74.dp)
+            }
+        } else if (transactions.isEmpty()) {
+            item(key = "empty_ledger_card") {
+                MonoCard(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    backgroundColor = MonoObsidian,
+                    contentPadding = PaddingValues(20.dp)
                 ) {
                     Text(
-                        text = "SELECT ACTIVE HSK TRACK",
+                        text = "ZERO ENTRIES IN SELECTED WINDOW",
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = AlabasterWhite
                     )
-                    Box(
-                        modifier = Modifier
-                            .neoBrutalSurface(
-                                backgroundColor = BrutalOrange,
-                                borderColor = BrutalBlack,
-                                shadowColor = BrutalBlack,
-                                borderWidth = 2.dp,
-                                shadowOffset = 3.dp
-                            )
-                            .clickable(onClick = onToggleHskStandard)
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                            .testTag("toggle_hsk_standard_button")
-                    ) {
-                        Text(
-                            text = if (profile.hskStandard == "HSK_2") "SWITCH TO HSK 3.0" else "SWITCH TO HSK 2.0",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    (1..6).forEach { lvl ->
-                        NeoBrutalChip(
-                            text = "HSK $lvl",
-                            selected = profile.currentHskLevel.toInt() == lvl,
-                            selectedColor = BrutalYellow,
-                            onClick = { onSelectHskLevel(lvl) }
-                        )
-                    }
-                }
-            }
-        }
-
-        // Asymmetric 2x2 Neo-Brutalist Metrics Grid
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    MetricStatCard(
-                        modifier = Modifier.weight(1f),
-                        headerColor = BrutalYellow,
-                        title = "VOCAB DECK",
-                        value = "${flashcards.size} WORDS",
-                        subtitle = "$masteredVocabCount MASTERED · $dueFlashcardsCount DUE",
-                        onClick = onOpenFlashcardReview
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Record your first expense, income, or split bill to activate real-time cash-flow telemetry and animated budget tracking.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MutedZinc
                     )
-                    MetricStatCard(
-                        modifier = Modifier.weight(1f),
-                        headerColor = BrutalCobalt,
-                        title = "HANZI STUDIO",
-                        value = "${profile.masteredCharacterIds.size}/${CurriculumExtras.characters.size}",
-                        subtitle = "STROKE CANVAS",
-                        onClick = onContinueLearning
-                    )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    MetricStatCard(
-                        modifier = Modifier.weight(1f),
-                        headerColor = BrutalOrange,
-                        title = "CURRICULUM",
-                        value = "$completedLessonsCount/$totalLessons",
-                        subtitle = "A0 TO HSK 6",
-                        onClick = onContinueLearning
-                    )
-                    MetricStatCard(
-                        modifier = Modifier.weight(1f),
-                        headerColor = BrutalMint,
-                        title = "SPEAKING LAB",
-                        value = "${profile.speakingAccuracy}%",
-                        subtitle = "LISTEN ${profile.listeningAccuracy}% · READ ${profile.readingAccuracy}%",
-                        onClick = onOpenSpeakingCenter
+                    Spacer(modifier = Modifier.height(14.dp))
+                    MonoButton(
+                        text = "+ ADD FIRST TRANSACTION",
+                        backgroundColor = AcidLime,
+                        contentColor = MonoBlack,
+                        useMediumHaptic = true,
+                        onClick = { onOpenAddTransaction(null) }
                     )
                 }
             }
-        }
-
-        // Daily Learning Checklist
-        item {
-            NeoBrutalCard(
-                modifier = Modifier.fillMaxWidth(),
-                accentHeaderColor = BrutalOrange,
-                headerTitle = "DAILY LEARNING CHECKLIST",
-                headerRightText = "4 MISSIONS"
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ChecklistActionRow(
-                        completed = completedLessonsCount > 0,
-                        title = "Complete 1 Structured HSK or Pinyin Lesson",
-                        subtitle = recommendedLesson.title,
-                        onClick = onContinueLearning
-                    )
-                    ChecklistActionRow(
-                        completed = dueFlashcardsCount == 0 && flashcards.isNotEmpty(),
-                        title = "Review Spaced Repetition Vocabulary Queue",
-                        subtitle = if (dueFlashcardsCount > 0) "$dueFlashcardsCount cards due for SM-2 review today" else "All due flashcards reviewed!",
-                        onClick = onOpenFlashcardReview
-                    )
-                    ChecklistActionRow(
-                        completed = profile.unlockedBadgeIds.contains("badge_voice_flow"),
-                        title = "Practice Pitch-Contour Speaking & Tones",
-                        subtitle = "Analyze waveform & tone curve in Speaking Center",
-                        onClick = onOpenSpeakingCenter
-                    )
-                    ChecklistActionRow(
-                        completed = profile.studyMinutesToday >= profile.dailyGoalMinutes,
-                        title = "Converse with AI Mandarin Tutor",
-                        subtitle = "Roleplay or break down a Chinese sentence",
-                        onClick = onOpenAiTutor
-                    )
-                }
+        } else {
+            items(
+                items = transactions.take(8),
+                key = { it.id.ifBlank { "${it.title}_${it.timestampMillis}" } }
+            ) { tx ->
+                val isExpanded = expandedTransactionId == tx.id
+                DashboardTransactionCard(
+                    tx = tx,
+                    profile = profile,
+                    isExpanded = isExpanded,
+                    onToggleExpand = {
+                        expandedTransactionId = if (isExpanded) null else tx.id
+                    },
+                    onEdit = { onOpenAddTransaction(tx) },
+                    onDelete = {
+                        haptics.warning()
+                        onDeleteTransaction(tx)
+                    },
+                    modifier = Modifier.animateItem()
+                )
             }
         }
 
-        item {
-            Spacer(modifier = Modifier.height(24.dp))
+        item(key = "bottom_spacer") {
+            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }
 
 @Composable
-private fun BrutalStatPill(
-    modifier: Modifier = Modifier,
-    icon: ImageVector,
-    bgColor: Color,
-    fgColor: Color,
-    value: String,
-    label: String
+private fun DashboardTransactionCard(
+    tx: MonoTransaction,
+    profile: MonoUserProfile,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Box(
+    val isIncome = tx.type == "INCOME"
+    val tagCode = MonoCatalog.categories.firstOrNull { it.id == tx.categoryId }?.tagCode ?: "TXN"
+    val dateLabel = remember(tx.timestampMillis) {
+        SimpleDateFormat("MMM dd · HH:mm", Locale.US).format(Date(tx.timestampMillis)).uppercase(Locale.US)
+    }
+
+    MonoCard(
         modifier = modifier
-            .neoBrutalSurface(
-                backgroundColor = bgColor,
-                borderColor = BrutalBlack,
-                shadowColor = BrutalBlack,
-                borderWidth = 2.dp,
-                shadowOffset = 3.dp
-            )
-            .padding(horizontal = 10.dp, vertical = 10.dp)
-    ) {
-        Column {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = label,
-                    tint = fgColor,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = value,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = fgColor
-                )
-            }
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = fgColor,
-                fontSize = 10.sp
-            )
-        }
-    }
-}
-
-@Composable
-private fun MetricStatCard(
-    modifier: Modifier = Modifier,
-    headerColor: Color,
-    title: String,
-    value: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    NeoBrutalCard(
-        modifier = modifier,
-        accentHeaderColor = headerColor,
-        headerTitle = title,
-        shadowOffset = 4.dp,
-        contentPadding = PaddingValues(14.dp),
-        onClick = onClick
-    ) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun ChecklistActionRow(
-    completed: Boolean,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
             .fillMaxWidth()
-            .neoBrutalSurface(
-                backgroundColor = if (completed) BrutalMint.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surface,
-                borderColor = BrutalBlack,
-                shadowColor = BrutalBlack,
-                borderWidth = 2.dp,
-                shadowOffset = 3.dp
-            )
-            .clickable(onClick = onClick)
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .testTag("tx_card_${tx.id}"),
+        backgroundColor = MonoSlateCard,
+        borderColor = if (isExpanded) AcidLime else MonoBorderStructural,
+        contentPadding = PaddingValues(14.dp),
+        onClick = onToggleExpand
     ) {
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .neoBrutalSurface(
-                    backgroundColor = if (completed) BrutalMint else BrutalYellow,
-                    borderColor = BrutalBlack,
-                    shadowColor = BrutalBlack,
-                    borderWidth = 2.dp,
-                    shadowOffset = 2.dp
-                ),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (isIncome) CyberMintSurface else AcidLimeSurface)
+                        .border(
+                            1.dp,
+                            if (isIncome) CyberMint else AcidLime,
+                            RoundedCornerShape(6.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = tagCode,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isIncome) CyberMint else AcidLime,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = tx.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = AlabasterWhite,
+                            maxLines = 1
+                        )
+                        if (tx.isSplit) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                imageVector = Icons.Default.CallSplit,
+                                contentDescription = "Split transaction",
+                                tint = AcidLime,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = "${tx.categoryName.uppercase(Locale.US)} · $dateLabel",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MutedZinc
+                    )
+                }
+            }
+
+            val signedCents = if (isIncome) tx.amountCents else -tx.amountCents
             Text(
-                text = if (completed) "✓" else "→",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = BrutalBlack
+                text = MonoCatalog.formatMoney(signedCents, profile, showPlusForPositive = true),
+                style = MaterialTheme.typography.titleLarge,
+                color = if (isIncome) CyberMint else AlabasterWhite
             )
         }
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+
+        AnimatedVisibility(
+            visible = isExpanded,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Column(modifier = Modifier.padding(top = 12.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(MonoBorderStructural)
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+
+                if (tx.isSplit && tx.splitSummary.isNotBlank()) {
+                    Text(
+                        text = "SPLIT // ${tx.splitSummary}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = AcidLime
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+                if (tx.receiptNote.isNotBlank()) {
+                    Text(
+                        text = "NOTE // ${tx.receiptNote}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AlabasterWhite
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    MonoButton(
+                        text = "EDIT / SPLIT",
+                        icon = Icons.Default.Edit,
+                        backgroundColor = MonoObsidian,
+                        contentColor = AcidLime,
+                        borderColor = AcidLime,
+                        height = 40.dp,
+                        modifier = Modifier.weight(1f),
+                        onClick = onEdit
+                    )
+                    MonoButton(
+                        text = "DELETE",
+                        icon = Icons.Default.DeleteOutline,
+                        backgroundColor = SignalCrimsonSurface,
+                        contentColor = SignalCrimson,
+                        borderColor = SignalCrimson,
+                        height = 40.dp,
+                        modifier = Modifier.weight(1f),
+                        onClick = onDelete
+                    )
+                }
+            }
         }
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-            contentDescription = "Go",
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(18.dp)
-        )
     }
 }

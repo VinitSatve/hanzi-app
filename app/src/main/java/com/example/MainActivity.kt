@@ -5,10 +5,18 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -21,21 +29,23 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.automirrored.outlined.MenuBook
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Analytics
-import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Analytics
-import androidx.compose.material.icons.outlined.Book
-import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -43,15 +53,18 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -64,26 +77,32 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.example.data.model.UserProfile
-import com.example.data.repository.HanziRepository
+import com.example.data.model.MonoTransaction
+import com.example.data.model.MonoUserProfile
+import com.example.data.repository.MonoRepository
 import com.example.ui.auth.AuthScreen
 import com.example.ui.auth.signOut
+import com.example.ui.screens.AddTransactionSheet
+import com.example.ui.screens.AnalyticsScreen
 import com.example.ui.screens.DashboardScreen
-import com.example.ui.screens.LearnScreen
-import com.example.ui.screens.NotebookScreen
-import com.example.ui.screens.PracticeScreen
-import com.example.ui.screens.ProgressScreen
-import com.example.ui.theme.BrutalBlack
-import com.example.ui.theme.BrutalCobalt
-import com.example.ui.theme.BrutalMint
-import com.example.ui.theme.BrutalOrange
-import com.example.ui.theme.BrutalYellow
-import com.example.ui.theme.HanziTheme
+import com.example.ui.screens.HistoryLedgerScreen
+import com.example.ui.screens.VaultsAndSettingsScreen
+import com.example.ui.theme.AcidLime
+import com.example.ui.theme.AcidLimeSurface
+import com.example.ui.theme.AlabasterWhite
+import com.example.ui.theme.LocalMonoPreferences
+import com.example.ui.theme.MonoBlack
+import com.example.ui.theme.MonoBorderStructural
+import com.example.ui.theme.MonoObsidian
+import com.example.ui.theme.MonoSlateCard
+import com.example.ui.theme.MonoTheme
+import com.example.ui.theme.MutedZinc
 import com.example.ui.theme.neoBrutalSurface
 import com.example.ui.viewmodel.DataUiState
-import com.example.ui.viewmodel.HanziViewModel
-import com.example.util.MandarinSpeechManager
+import com.example.ui.viewmodel.MonoViewModel
+import com.example.util.MonoMotion
 import com.example.util.configureAppCheck
+import com.example.util.rememberMonoHaptics
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -97,12 +116,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // STEP 1: Mandatory App Check configuration with launch intent before any UI or Firebase calls
         configureAppCheck(this, intent)
 
         enableEdgeToEdge()
         setContent {
-            HanziRootApp()
+            MonoRootApp()
         }
     }
 }
@@ -116,40 +134,33 @@ internal fun FirebaseAuth.authStateFlow(): Flow<FirebaseUser?> = callbackFlow {
 }
 
 @Composable
-fun HanziRootApp(auth: FirebaseAuth = Firebase.auth) {
+fun MonoRootApp(auth: FirebaseAuth = Firebase.auth) {
     val currentUser by auth.authStateFlow().collectAsStateWithLifecycle(initialValue = auth.currentUser)
     val user = currentUser
 
     if (user == null) {
-        HanziTheme(darkTheme = false) {
+        MonoTheme {
             AuthScreen(onAuthSuccess = {})
         }
     } else {
-        HanziAuthenticatedWorkspace(currentUserId = user.uid)
+        MonoAuthenticatedWorkspace(currentUserId = user.uid)
     }
 }
 
-private data class NavDestination(
+private data class MonoNavDestination(
     val label: String,
-    val hanziStamp: String,
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector,
-    val accentColor: Color,
     val tag: String
 )
 
 @Composable
-fun HanziAuthenticatedWorkspace(currentUserId: String) {
+fun MonoAuthenticatedWorkspace(currentUserId: String) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val credentialManager = remember { CredentialManager.create(context) }
-    val speechManager = remember { MandarinSpeechManager(context) }
 
-    DisposableEffect(Unit) {
-        onDispose { speechManager.shutdown() }
-    }
-
-    val viewModel: HanziViewModel = viewModel(
+    val viewModel: MonoViewModel = viewModel(
         key = currentUserId,
         factory = viewModelFactory {
             initializer {
@@ -158,60 +169,141 @@ fun HanziAuthenticatedWorkspace(currentUserId: String) {
                 }
                 val databaseId = app.getString(R.string.firestore_database_id)
                 val db = FirebaseFirestore.getInstance(databaseId)
-                HanziViewModel(HanziRepository(db), currentUserId, app.applicationContext)
+                MonoViewModel(MonoRepository(db), currentUserId)
             }
         }
     )
 
-    val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
-    val curriculumManifest by viewModel.curriculumManifest.collectAsStateWithLifecycle()
-    val offlineJsonCacheStats by viewModel.offlineJsonCacheStats.collectAsStateWithLifecycle()
     val profileUiState by viewModel.profileState.collectAsStateWithLifecycle()
-    val flashcardsUiState by viewModel.flashcardsState.collectAsStateWithLifecycle()
-    val notesUiState by viewModel.notesState.collectAsStateWithLifecycle()
-    val downloadProgressMap by viewModel.downloadProgressMap.collectAsStateWithLifecycle()
-    val pronunciationEvaluation by viewModel.pronunciationEvaluation.collectAsStateWithLifecycle()
-    val speakingAiState by viewModel.speakingAiState.collectAsStateWithLifecycle()
-    val tutorMessages by viewModel.tutorMessages.collectAsStateWithLifecycle()
-    val tutorConversations by viewModel.tutorConversations.collectAsStateWithLifecycle()
-    val activeConversationId by viewModel.activeConversationId.collectAsStateWithLifecycle()
-    val tutorAiState by viewModel.tutorAiState.collectAsStateWithLifecycle()
-    val sentenceBreakdown by viewModel.sentenceBreakdown.collectAsStateWithLifecycle()
-    val breakdownAiState by viewModel.breakdownAiState.collectAsStateWithLifecycle()
+    val transactionsUiState by viewModel.transactionsState.collectAsStateWithLifecycle()
+    val budgetsUiState by viewModel.budgetsState.collectAsStateWithLifecycle()
+    val goalsUiState by viewModel.goalsState.collectAsStateWithLifecycle()
+    val billsUiState by viewModel.billsState.collectAsStateWithLifecycle()
+
+    val selectedDateFilter by viewModel.selectedDateFilter.collectAsStateWithLifecycle()
+    val monthOffset by viewModel.monthOffset.collectAsStateWithLifecycle()
+    val selectedCategoryFilter by viewModel.selectedCategoryFilter.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val statusBanner by viewModel.statusBanner.collectAsStateWithLifecycle()
 
-    var selectedTab by remember { mutableIntStateOf(0) }
-    var practiceInitialSubTab by remember { mutableIntStateOf(0) }
-    var notebookInitialSubTab by remember { mutableIntStateOf(0) }
+    val activeProfile = (profileUiState as? DataUiState.Success)?.data
+        ?: MonoUserProfile(id = "settings", userId = currentUserId)
+    val allTransactions = (transactionsUiState as? DataUiState.Success)?.data ?: emptyList()
+    val activeBudgets = (budgetsUiState as? DataUiState.Success)?.data ?: emptyList()
+    val activeGoals = (goalsUiState as? DataUiState.Success)?.data ?: emptyList()
+    val activeBills = (billsUiState as? DataUiState.Success)?.data ?: emptyList()
+    val isLoadingInitial = transactionsUiState is DataUiState.Loading
+
+    val filteredTransactions = remember(
+        allTransactions,
+        selectedDateFilter,
+        monthOffset,
+        selectedCategoryFilter,
+        searchQuery
+    ) {
+        viewModel.filterTransactions(
+            allTransactions = allTransactions,
+            dateFilter = selectedDateFilter,
+            monthOffset = monthOffset,
+            categoryFilter = selectedCategoryFilter,
+            search = searchQuery
+        )
+    }
+
+    val dailyChartPoints = remember(filteredTransactions, monthOffset) {
+        viewModel.buildDailyChartPoints(filteredTransactions, monthOffset)
+    }
+
+    val categoryBreakdown = remember(filteredTransactions, activeBudgets) {
+        viewModel.buildCategoryBreakdown(filteredTransactions, activeBudgets)
+    }
+
+    val currentMonthLabel = remember(monthOffset) {
+        viewModel.currentMonthLabel(monthOffset)
+    }
+    val currentMonthKey = remember {
+        viewModel.currentMonthKey(0)
+    }
+
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    var isTransactionSheetOpen by remember { mutableStateOf(false) }
+    var editingTransaction by remember { mutableStateOf<MonoTransaction?>(null) }
+
+    val stateHolder = rememberSaveableStateHolder()
 
     if (selectedTab != 0) {
         BackHandler { selectedTab = 0 }
     }
 
-    val activeProfile = (profileUiState as? DataUiState.Success)?.data
-        ?: UserProfile(id = currentUserId, userId = currentUserId)
-    val activeFlashcards = (flashcardsUiState as? DataUiState.Success)?.data ?: emptyList()
-    val activeNotes = (notesUiState as? DataUiState.Success)?.data ?: emptyList()
+    val destinations = remember {
+        listOf(
+            MonoNavDestination("HOME", Icons.Filled.Home, Icons.Outlined.Home, "nav_home"),
+            MonoNavDestination("TELEMETRY", Icons.Filled.Analytics, Icons.Outlined.Analytics, "nav_analytics"),
+            MonoNavDestination("LEDGER", Icons.AutoMirrored.Filled.ReceiptLong, Icons.AutoMirrored.Outlined.ReceiptLong, "nav_ledger"),
+            MonoNavDestination("VAULTS", Icons.Filled.AccountBalanceWallet, Icons.Outlined.AccountBalanceWallet, "nav_vaults")
+        )
+    }
 
-    val destinations = listOf(
-        NavDestination("Home", "首", Icons.Filled.Home, Icons.Outlined.Home, HanziTheme.PureBlack, "nav_home"),
-        NavDestination("Learn", "学", Icons.AutoMirrored.Filled.MenuBook, Icons.AutoMirrored.Outlined.MenuBook, HanziTheme.PureBlack, "nav_learn"),
-        NavDestination("Practice", "练", Icons.Filled.GraphicEq, Icons.Outlined.GraphicEq, HanziTheme.PureBlack, "nav_practice"),
-        NavDestination("Tutor", "师", Icons.Filled.Book, Icons.Outlined.Book, HanziTheme.PureBlack, "nav_notebook"),
-        NavDestination("Progress", "进", Icons.Filled.Analytics, Icons.Outlined.Analytics, HanziTheme.PureBlack, "nav_progress")
-    )
+    MonoTheme(
+        userReducedMotion = activeProfile.reducedMotionEnabled,
+        hapticsEnabled = activeProfile.hapticsEnabled
+    ) {
+        val haptics = rememberMonoHaptics()
+        val prefs = LocalMonoPreferences.current
 
-    HanziTheme(darkTheme = isDarkTheme) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
+            containerColor = MonoBlack,
             contentWindowInsets = WindowInsets.safeDrawing,
+            floatingActionButton = {
+                val fabInteraction = remember { MutableInteractionSource() }
+                val isFabPressed by fabInteraction.collectIsPressedAsState()
+                val fabScale by animateFloatAsState(
+                    targetValue = if (isFabPressed) 0.92f else 1f,
+                    animationSpec = MonoMotion.buttonSpring(prefs.reducedMotion),
+                    label = "fabScale"
+                )
+                Box(
+                    modifier = Modifier
+                        .scale(fabScale)
+                        .size(56.dp)
+                        .neoBrutalSurface(
+                            backgroundColor = AcidLime,
+                            borderColor = AcidLime,
+                            shadowColor = MonoBlack,
+                            borderWidth = 2.dp,
+                            shadowOffset = 4.dp,
+                            cornerRadius = 12.dp
+                        )
+                        .clickable(
+                            interactionSource = fabInteraction,
+                            indication = null,
+                            onClick = {
+                                haptics.mediumImpact()
+                                editingTransaction = null
+                                isTransactionSheetOpen = true
+                            }
+                        )
+                        .testTag("fab_add_transaction"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add transaction",
+                        tint = MonoBlack,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            },
             bottomBar = {
-                NeoBrutalBottomNavigationBar(
+                MonoBottomNavigationBar(
                     destinations = destinations,
                     selectedTab = selectedTab,
                     onSelectTab = { idx ->
-                        speechManager.triggerHaptic()
-                        selectedTab = idx
+                        if (idx != selectedTab) {
+                            haptics.lightTap()
+                            selectedTab = idx
+                        }
                     }
                 )
             }
@@ -220,25 +312,33 @@ fun HanziAuthenticatedWorkspace(currentUserId: String) {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-                color = HanziTheme.colors.background
+                color = MonoBlack
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    AnimatedVisibility(visible = statusBanner != null) {
+                    // Animated Status Banner
+                    AnimatedVisibility(
+                        visible = statusBanner != null,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 18.dp, vertical = 8.dp)
                                 .neoBrutalSurface(
-                                    backgroundColor = HanziTheme.colors.electricYellow,
-                                    borderColor = HanziTheme.colors.borderBlack,
-                                    shadowColor = HanziTheme.shadows.shadowColor,
-                                    borderWidth = HanziTheme.borders.thinWidth,
+                                    backgroundColor = AcidLimeSurface,
+                                    borderColor = AcidLime,
+                                    shadowColor = MonoBlack,
+                                    borderWidth = 1.5.dp,
                                     shadowOffset = 3.dp,
-                                    cornerRadius = HanziTheme.borders.cornerRadius
+                                    cornerRadius = 6.dp
                                 )
-                                .clickable { viewModel.clearStatusBanner() }
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            contentAlignment = Alignment.CenterStart
+                                .clickable {
+                                    haptics.lightTap()
+                                    viewModel.clearStatusBanner()
+                                }
+                                .padding(horizontal = 14.dp, vertical = 10.dp)
+                                .testTag("status_banner")
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -248,165 +348,195 @@ fun HanziAuthenticatedWorkspace(currentUserId: String) {
                                 Text(
                                     text = "● ${statusBanner ?: ""}",
                                     style = MaterialTheme.typography.labelLarge,
-                                    color = BrutalBlack,
+                                    color = AcidLime,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.weight(1f)
                                 )
                                 Text(
                                     text = "[DISMISS]",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = BrutalBlack
+                                    color = AlabasterWhite
                                 )
                             }
                         }
                     }
 
+                    // Directional Spring Screen Transitions Preserving State
                     Box(modifier = Modifier.weight(1f)) {
-                        when (selectedTab) {
-                            0 -> DashboardScreen(
-                                profile = activeProfile,
-                                flashcards = activeFlashcards,
-                                isDarkTheme = isDarkTheme,
-                                onToggleDarkTheme = { viewModel.toggleDarkTheme() },
-                                onToggleScriptMode = { viewModel.toggleScriptMode() },
-                                onToggleHskStandard = { viewModel.toggleHskStandard() },
-                                onSelectHskLevel = { viewModel.updateTargetHskLevel(it) },
-                                onContinueLearning = { selectedTab = 1 },
-                                onOpenSpeakingCenter = {
-                                    practiceInitialSubTab = 0
-                                    selectedTab = 2
-                                },
-                                onOpenFlashcardReview = {
-                                    practiceInitialSubTab = 1
-                                    selectedTab = 2
-                                },
-                                onOpenAiTutor = {
-                                    notebookInitialSubTab = 0
-                                    selectedTab = 3
-                                },
-                                onSpeakSample = { text -> speechManager.speak(text, false) }
-                            )
-                            1 -> LearnScreen(
-                                profile = activeProfile,
-                                onSpeak = { text, slow -> speechManager.speak(text, slow) },
-                                onCompleteLesson = { lessonId, pts ->
-                                    viewModel.recordLearningMilestone(
-                                        pointsEarned = pts,
-                                        minutesAdded = 5,
-                                        completedLessonId = lessonId,
-                                        badgeToUnlock = "badge_first_step"
+                        AnimatedContent(
+                            targetState = selectedTab,
+                            transitionSpec = {
+                                MonoMotion.directionalTabTransition(
+                                    initialIndex = initialState,
+                                    targetIndex = targetState,
+                                    reducedMotion = prefs.reducedMotion
+                                )
+                            },
+                            label = "monoScreenTransition"
+                        ) { tabIndex ->
+                            stateHolder.SaveableStateProvider(key = "tab_$tabIndex") {
+                                when (tabIndex) {
+                                    0 -> DashboardScreen(
+                                        profile = activeProfile,
+                                        transactions = filteredTransactions,
+                                        goals = activeGoals,
+                                        bills = activeBills,
+                                        isLoadingInitialData = isLoadingInitial,
+                                        selectedDateFilter = selectedDateFilter,
+                                        monthLabel = currentMonthLabel,
+                                        currentMonthKey = currentMonthKey,
+                                        onSelectDateFilter = { viewModel.setDateFilter(it) },
+                                        onStepMonth = { viewModel.stepMonthOffset(it) },
+                                        onRefresh = { viewModel.triggerRefreshPulse() },
+                                        onOpenAddTransaction = { tx ->
+                                            editingTransaction = tx
+                                            isTransactionSheetOpen = true
+                                        },
+                                        onNavigateToAnalytics = { selectedTab = 1 },
+                                        onNavigateToHistory = { selectedTab = 2 },
+                                        onNavigateToVaults = { selectedTab = 3 },
+                                        onUpdateMonthlyBudget = { newBudgetCents ->
+                                            viewModel.updateProfileSettings(
+                                                currentProfile = activeProfile,
+                                                monthlyBudgetCents = newBudgetCents
+                                            )
+                                        },
+                                        onMarkBillPaid = { bill ->
+                                            viewModel.markRecurringBillPaid(bill)
+                                        },
+                                        onDeleteTransaction = { tx ->
+                                            viewModel.deleteTransaction(tx.id, tx.title)
+                                        }
                                     )
-                                },
-                                onAddVocabToSrs = { word ->
-                                    viewModel.addCustomVocabularyCard(
-                                        simplified = word.simplified,
-                                        traditional = word.traditional,
-                                        pinyin = word.pinyin,
-                                        english = word.english,
-                                        partOfSpeech = word.partOfSpeech,
-                                        exampleChinese = word.exampleSimplified,
-                                        examplePinyin = word.examplePinyin,
-                                        exampleEnglish = word.exampleEnglish,
-                                        hskLevel = word.hskLevel,
-                                        category = word.category
+                                    1 -> AnalyticsScreen(
+                                        profile = activeProfile,
+                                        dailyChartPoints = dailyChartPoints,
+                                        categoryBreakdown = categoryBreakdown,
+                                        selectedDateFilter = selectedDateFilter,
+                                        monthLabel = currentMonthLabel,
+                                        onSelectDateFilter = { viewModel.setDateFilter(it) },
+                                        onStepMonth = { viewModel.stepMonthOffset(it) },
+                                        onSaveCategoryBudget = { catId, catName, limitCents ->
+                                            viewModel.saveCategoryBudget(catId, catName, limitCents)
+                                        }
                                     )
-                                },
-                                onAddCustomVocab = { simp, trad, pin, eng, lvl ->
-                                    viewModel.addCustomVocabularyCard(
-                                        simplified = simp,
-                                        traditional = trad,
-                                        pinyin = pin,
-                                        english = eng,
-                                        partOfSpeech = "Custom",
-                                        exampleChinese = "",
-                                        examplePinyin = "",
-                                        exampleEnglish = "",
-                                        hskLevel = lvl,
-                                        category = "Personal"
+                                    2 -> HistoryLedgerScreen(
+                                        profile = activeProfile,
+                                        transactions = filteredTransactions,
+                                        searchQuery = searchQuery,
+                                        selectedCategoryFilter = selectedCategoryFilter,
+                                        onSearchQueryChange = { viewModel.setSearchQuery(it) },
+                                        onSelectCategoryFilter = { viewModel.setCategoryFilter(it) },
+                                        onOpenEditTransaction = { tx ->
+                                            editingTransaction = tx
+                                            isTransactionSheetOpen = true
+                                        },
+                                        onDuplicateTransaction = { tx ->
+                                            viewModel.duplicateTransaction(tx)
+                                        },
+                                        onDeleteTransaction = { tx ->
+                                            viewModel.deleteTransaction(tx.id, tx.title)
+                                        }
                                     )
-                                },
-                                curriculumManifest = curriculumManifest,
-                                offlineJsonCacheStats = offlineJsonCacheStats
-                            )
-                            2 -> PracticeScreen(
-                                initialSubTab = practiceInitialSubTab,
-                                profile = activeProfile,
-                                flashcards = activeFlashcards,
-                                speechManager = speechManager,
-                                pronunciationEvaluation = pronunciationEvaluation,
-                                speakingAiState = speakingAiState,
-                                onAnalyzePronunciation = { prompt, text, wave, pitch ->
-                                    viewModel.analyzePronunciationAttempt(prompt, text, wave, pitch)
-                                },
-                                onReviewFlashcard = { card, grade ->
-                                    viewModel.reviewFlashcard(card, grade)
-                                },
-                                onToggleFavoriteCard = { card ->
-                                    viewModel.toggleFavoriteCard(card)
-                                },
-                                onMasterCharacter = { charId ->
-                                    viewModel.recordLearningMilestone(
-                                        pointsEarned = 30,
-                                        minutesAdded = 3,
-                                        masteredCharId = charId,
-                                        badgeToUnlock = "badge_hanzi_scribe"
+                                    3 -> VaultsAndSettingsScreen(
+                                        profile = activeProfile,
+                                        goals = activeGoals,
+                                        bills = activeBills,
+                                        currentMonthKey = currentMonthKey,
+                                        onCreateOrUpdateGoal = { title, target, saved, id, onMilestone ->
+                                            viewModel.createOrUpdateSavingsGoal(
+                                                title = title,
+                                                targetCents = target,
+                                                savedCents = saved,
+                                                existingId = id,
+                                                onGoalCompleted = onMilestone
+                                            )
+                                        },
+                                        onDeleteGoal = { goal ->
+                                            viewModel.deleteSavingsGoal(goal.id, goal.title)
+                                        },
+                                        onCreateOrUpdateBill = { title, amount, catId, cadence, dueDay, id ->
+                                            viewModel.createOrUpdateRecurringBill(
+                                                title = title,
+                                                amountCents = amount,
+                                                categoryId = catId,
+                                                cadence = cadence,
+                                                nextDueDayOfMonth = dueDay,
+                                                existingId = id
+                                            )
+                                        },
+                                        onMarkBillPaid = { bill ->
+                                            viewModel.markRecurringBillPaid(bill)
+                                        },
+                                        onDeleteBill = { bill ->
+                                            viewModel.deleteRecurringBill(bill.id, bill.title)
+                                        },
+                                        onUpdateProfile = { currencyCode, symbol, reducedMotion, hapticsOn ->
+                                            viewModel.updateProfileSettings(
+                                                currentProfile = activeProfile,
+                                                currencyCode = currencyCode,
+                                                customCurrencySymbol = symbol,
+                                                reducedMotionEnabled = reducedMotion,
+                                                hapticsEnabled = hapticsOn
+                                            )
+                                        },
+                                        onExportBackupJson = {
+                                            viewModel.generateBackupJson(
+                                                profile = activeProfile,
+                                                transactions = allTransactions,
+                                                budgets = activeBudgets,
+                                                goals = activeGoals,
+                                                bills = activeBills
+                                            )
+                                        },
+                                        onRestoreBackupJson = { json, onSuccess, onError ->
+                                            viewModel.restoreFromBackupJson(json, onSuccess, onError)
+                                        },
+                                        onSignOut = {
+                                            signOut(
+                                                context = context,
+                                                credentialManager = credentialManager,
+                                                onSignOutComplete = {},
+                                                scope = scope
+                                            )
+                                        }
                                     )
-                                },
-                                onCompleteExamOrListening = { pts ->
-                                    viewModel.recordLearningMilestone(pointsEarned = pts, minutesAdded = 3)
                                 }
-                            )
-                            3 -> NotebookScreen(
-                                initialSubTab = notebookInitialSubTab,
-                                notes = activeNotes,
-                                tutorMessages = tutorMessages,
-                                tutorConversations = tutorConversations,
-                                activeConversationId = activeConversationId,
-                                tutorAiState = tutorAiState,
-                                sentenceBreakdown = sentenceBreakdown,
-                                breakdownAiState = breakdownAiState,
-                                onSendTutorMessage = { text, mode ->
-                                    viewModel.sendTutorMessage(text, mode)
-                                },
-                                onStartNewConversation = { mode ->
-                                    viewModel.startNewTutorConversation(mode)
-                                },
-                                onSelectConversation = { threadId ->
-                                    viewModel.selectTutorConversation(threadId)
-                                },
-                                onRetryTutorMessage = {
-                                    viewModel.retryLastTutorMessage()
-                                },
-                                onExplainSentence = { sentence ->
-                                    viewModel.explainChineseSentence(sentence)
-                                },
-                                onAddNote = { title, chinese, pinyin, english, grammar, folder ->
-                                    viewModel.addPersonalNote(title, chinese, pinyin, english, grammar, folder)
-                                },
-                                onDeleteNote = { noteId ->
-                                    viewModel.deletePersonalNote(noteId)
-                                },
-                                onSpeak = { text -> speechManager.speak(text, false) }
-                            )
-                            4 -> ProgressScreen(
-                                profile = activeProfile,
-                                flashcards = activeFlashcards,
-                                downloadProgressMap = downloadProgressMap,
-                                onDownloadPack = { viewModel.downloadOfflinePack(it) },
-                                onRemovePack = { viewModel.removeOfflinePack(it) },
-                                onUpdateDailyGoal = { viewModel.updateDailyGoalMinutes(it) },
-                                onSignOut = {
-                                    signOut(
-                                        context = context,
-                                        credentialManager = credentialManager,
-                                        onSignOutComplete = {},
-                                        scope = scope
-                                    )
-                                },
-                                offlineJsonCacheStats = offlineJsonCacheStats
-                            )
+                            }
                         }
                     }
+                }
+
+                // Bottom-Up Add / Edit Transaction Modal Sheet
+                if (isTransactionSheetOpen) {
+                    val currentMonthExpenses = remember(filteredTransactions) {
+                        filteredTransactions.filter { it.type == "EXPENSE" }.sumOf { it.amountCents }
+                    }
+                    AddTransactionSheet(
+                        profile = activeProfile,
+                        editingTransaction = editingTransaction,
+                        onDismiss = {
+                            isTransactionSheetOpen = false
+                            editingTransaction = null
+                        },
+                        onSaveTransaction = { title, amountCents, type, catId, catName, note, isSplit, splitSummary, existingId, onConfirmed, onError ->
+                            viewModel.saveTransactionConfirmed(
+                                title = title,
+                                amountCents = amountCents,
+                                type = type,
+                                categoryId = catId,
+                                categoryName = catName,
+                                receiptNote = note,
+                                isSplit = isSplit,
+                                splitSummary = splitSummary,
+                                existingId = existingId,
+                                currentMonthExpenseCents = currentMonthExpenses,
+                                monthlyBudgetCents = activeProfile.monthlyBudgetCents,
+                                onSuccessConfirmed = onConfirmed,
+                                onError = onError
+                            )
+                        }
+                    )
                 }
             }
         }
@@ -414,58 +544,65 @@ fun HanziAuthenticatedWorkspace(currentUserId: String) {
 }
 
 @Composable
-private fun NeoBrutalBottomNavigationBar(
-    destinations: List<NavDestination>,
+private fun MonoBottomNavigationBar(
+    destinations: List<MonoNavDestination>,
     selectedTab: Int,
     onSelectTab: (Int) -> Unit
 ) {
+    val prefs = LocalMonoPreferences.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(HanziTheme.colors.surface)
+            .background(MonoObsidian)
+            .windowInsetsPadding(WindowInsets.navigationBars)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(HanziTheme.borders.thinWidth)
-                .background(HanziTheme.colors.borderBlack)
+                .height(1.5.dp)
+                .background(MonoBorderStructural)
         )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 10.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             destinations.forEachIndexed { idx, dest ->
                 val isSelected = selectedTab == idx
                 val interactionSource = remember { MutableInteractionSource() }
                 val isPressed by interactionSource.collectIsPressedAsState()
+
+                val scale by animateFloatAsState(
+                    targetValue = if (isPressed) 0.94f else 1f,
+                    animationSpec = MonoMotion.buttonSpring(prefs.reducedMotion),
+                    label = "navTabScale"
+                )
                 val pressOffset by animateDpAsState(
                     targetValue = if (isPressed) 2.dp else 0.dp,
-                    animationSpec = tween(60),
-                    label = "navItemPress"
+                    animationSpec = tween(MonoMotion.BUTTON_PRESS_MS),
+                    label = "navTabOffset"
                 )
-                val fgColor = if (isSelected) Color.White else HanziTheme.colors.onSurface
+                val bgColor by animateColorAsState(
+                    targetValue = if (isSelected) AcidLime else MonoSlateCard,
+                    animationSpec = tween(MonoMotion.MICRO_INTERACTION_MS),
+                    label = "navTabBg"
+                )
+                val fgColor = if (isSelected) MonoBlack else MutedZinc
 
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(54.dp)
+                        .height(52.dp)
+                        .scale(scale)
                         .offset(x = pressOffset, y = pressOffset)
-                        .then(
-                            if (isSelected) {
-                                Modifier.neoBrutalSurface(
-                                    backgroundColor = HanziTheme.PureBlack,
-                                    borderColor = HanziTheme.colors.borderBlack,
-                                    shadowColor = HanziTheme.VividOrange,
-                                    borderWidth = HanziTheme.borders.thinWidth,
-                                    shadowOffset = (3.dp - pressOffset).coerceAtLeast(1.dp),
-                                    cornerRadius = HanziTheme.borders.cornerRadius
-                                )
-                            } else {
-                                Modifier.background(Color.Transparent)
-                            }
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(bgColor)
+                        .border(
+                            width = 1.5.dp,
+                            color = if (isSelected) AcidLime else MonoBorderStructural,
+                            shape = RoundedCornerShape(8.dp)
                         )
                         .clickable(
                             interactionSource = interactionSource,
@@ -483,8 +620,8 @@ private fun NeoBrutalBottomNavigationBar(
                             if (isSelected) {
                                 Box(
                                     modifier = Modifier
-                                        .size(6.dp)
-                                        .background(HanziTheme.VividOrange)
+                                        .size(5.dp)
+                                        .background(MonoBlack)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                             }
@@ -497,7 +634,7 @@ private fun NeoBrutalBottomNavigationBar(
                         }
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = dest.label.uppercase(),
+                            text = dest.label,
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,

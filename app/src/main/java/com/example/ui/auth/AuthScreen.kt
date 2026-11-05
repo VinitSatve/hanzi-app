@@ -5,7 +5,6 @@ import android.content.Context
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,15 +15,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -37,7 +34,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -51,17 +47,25 @@ import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import com.example.R
-import com.example.ui.theme.BrutalBlack
-import com.example.ui.theme.BrutalCobalt
-import com.example.ui.theme.BrutalMint
-import com.example.ui.theme.BrutalOrange
-import com.example.ui.theme.BrutalWhite
-import com.example.ui.theme.BrutalYellow
-import com.example.ui.theme.NeoBrutalBadge
-import com.example.ui.theme.NeoBrutalButton
-import com.example.ui.theme.NeoBrutalCard
+import com.example.ui.theme.AcidLime
+import com.example.ui.theme.AcidLimeSurface
+import com.example.ui.theme.AlabasterWhite
+import com.example.ui.theme.CyberMint
+import com.example.ui.theme.MonoBadge
+import com.example.ui.theme.MonoBlack
+import com.example.ui.theme.MonoBorderStructural
+import com.example.ui.theme.MonoButton
+import com.example.ui.theme.MonoCard
+import com.example.ui.theme.MonoObsidian
+import com.example.ui.theme.MonoSlateCard
+import com.example.ui.theme.MutedZinc
 import com.example.ui.theme.NeoBrutalIllustratedEmblem
+import com.example.ui.theme.SignalCrimson
+import com.example.ui.theme.SignalCrimsonSurface
+import com.example.ui.theme.VoltageAmber
 import com.example.ui.theme.neoBrutalSurface
+import com.example.util.MonoShimmerSkeleton
+import com.example.util.rememberMonoHaptics
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -182,6 +186,7 @@ fun AuthScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val haptics = rememberMonoHaptics()
     val credentialManager = remember { CredentialManager.create(context) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -190,7 +195,10 @@ fun AuthScreen(
         attemptAutoSignIn(
             context = context,
             credentialManager = credentialManager,
-            onAuthSuccess = onAuthSuccess,
+            onAuthSuccess = {
+                haptics.success()
+                onAuthSuccess()
+            },
             onUnauthenticated = {},
             scope = scope
         )
@@ -198,136 +206,139 @@ fun AuthScreen(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+        color = MonoBlack
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(horizontal = 20.dp, vertical = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .widthIn(max = 480.dp)
+                    .widthIn(max = 500.dp)
             ) {
-                // Top Asymmetric Neo-Brutalist Editorial Ticker
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    NeoBrutalBadge(
-                        text = "汉字 · HANZI OS v3.0",
-                        backgroundColor = BrutalYellow,
-                        textColor = BrutalBlack
+                    MonoBadge(
+                        text = "MONO // FINANCIAL OS v4.2",
+                        backgroundColor = AcidLimeSurface,
+                        borderColor = AcidLime,
+                        textColor = AcidLime
                     )
-                    NeoBrutalBadge(
-                        text = "A0 → HSK 6",
-                        backgroundColor = BrutalCobalt,
-                        textColor = Color.White
+                    MonoBadge(
+                        text = "ZERO-TRUST CLOUD",
+                        backgroundColor = MonoSlateCard,
+                        borderColor = MonoBorderStructural,
+                        textColor = AlabasterWhite
                     )
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Oversized Expressive Neo-Brutalist Heading
                 Text(
-                    text = "MASTER MANDARIN.\nZERO FLUFF.",
+                    text = "PRECISION WEALTH.\nACID CLARITY.",
                     style = MaterialTheme.typography.displayMedium,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = AlabasterWhite
                 )
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-                // Framed Neo-Brutalist Hero Poster Card with 6dp Hard Offset Shadow
-                NeoBrutalCard(
+                Text(
+                    text = "High-contrast personal ledger engineered with spring-physics motion, tactile haptics, and real-time cloud synchronization.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MutedZinc
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                MonoCard(
                     modifier = Modifier.fillMaxWidth(),
-                    backgroundColor = BrutalWhite,
-                    accentHeaderColor = BrutalOrange,
-                    headerTitle = "EDITION 01 // PERSONAL MANDARIN SYSTEM",
-                    headerRightText = "简 / 繁",
-                    shadowOffset = 6.dp,
-                    borderWidth = 3.dp,
+                    backgroundColor = MonoObsidian,
+                    accentHeaderColor = AcidLime,
+                    headerTitle = "TERMINAL 01 // TELEMETRY & VAULT ARCHITECTURE",
+                    headerRightText = "60-120HZ",
                     contentPadding = PaddingValues(0.dp)
                 ) {
                     Image(
-                        painter = painterResource(id = R.drawable.img_neobrutal_hero_hanzi_1793857326334),
-                        contentDescription = "Neo-Brutalist Mandarin Chinese poster illustration",
+                        painter = painterResource(id = R.drawable.img_mono_hero_banner_1793868051061),
+                        contentDescription = "MONO Finance Dark Neo-Brutalist Hero Telemetry",
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(190.dp),
+                            .height(185.dp),
                         contentScale = ContentScale.Crop
                     )
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(3.dp)
-                            .background(BrutalBlack)
+                            .height(1.dp)
+                            .background(MonoBorderStructural)
                     )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(BrutalYellow)
+                            .background(MonoSlateCard)
                             .padding(horizontal = 14.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "PINYIN · TONES · HANZI · GRAMMAR · AI TUTOR",
+                            text = "LEDGER · BUDGETS · SPLIT · VAULTS · ANALYTICS",
                             style = MaterialTheme.typography.labelSmall,
-                            color = BrutalBlack,
+                            color = AcidLime,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "100% SYNC",
+                            text = "ENCRYPTED",
                             style = MaterialTheme.typography.labelSmall,
-                            color = BrutalBlack
+                            color = AlabasterWhite
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Asymmetric Neo-Brutalist Feature Blocks
-                NeoBrutalCard(
+                MonoCard(
                     modifier = Modifier.fillMaxWidth(),
-                    backgroundColor = MaterialTheme.colorScheme.surface,
-                    shadowOffset = 5.dp,
+                    backgroundColor = MonoSlateCard,
                     contentPadding = PaddingValues(14.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        BrutalFeatureBlock(
-                            glyph = "字",
-                            badgeColor = BrutalYellow,
-                            title = "STRUCTURED HSK 1–6 & STROKE STUDIO",
-                            subtitle = "Complete Simplified & Traditional curriculum, 17 grammar patterns & Mi-Zi-Ge canvas."
+                        MonoAuthFeatureRow(
+                            glyph = "$",
+                            badgeColor = AcidLime,
+                            title = "TABULAR FINANCIAL COUNTERS & SPLIT LEDGER",
+                            subtitle = "Smooth interpolated balance transitions, itemized bill splitting, and multi-currency formatting."
                         )
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(2.dp)
-                                .background(BrutalBlack)
+                                .height(1.dp)
+                                .background(MonoBorderStructural)
                         )
-                        BrutalFeatureBlock(
-                            glyph = "声",
-                            badgeColor = BrutalCobalt,
-                            title = "PITCH-CONTOUR & WAVEFORM LAB",
-                            subtitle = "Compare your recorded tone curves against native Mandarin pitch contours."
+                        MonoAuthFeatureRow(
+                            glyph = "%",
+                            badgeColor = CyberMint,
+                            title = "INTERACTIVE TOUCH TELEMETRY & STRIPED BUDGETS",
+                            subtitle = "Scrubbable Canvas cash-flow charts with haptic detents and diagonal-stripe burn indicators."
                         )
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(2.dp)
-                                .background(BrutalBlack)
+                                .height(1.dp)
+                                .background(MonoBorderStructural)
                         )
-                        BrutalFeatureBlock(
-                            glyph = "智",
-                            badgeColor = BrutalMint,
-                            title = "AI TUTOR + SM-2 SPACED REPETITION",
-                            subtitle = "Live Gemini roleplay, grammatical sentence breakdowns & cloud-synced flashcards."
+                        MonoAuthFeatureRow(
+                            glyph = "⚡",
+                            badgeColor = VoltageAmber,
+                            title = "RECURRING SUBSCRIPTIONS & SAVINGS VAULTS",
+                            subtitle = "Track monthly bills, milestone savings goals, and portable JSON backup & restore."
                         )
                     }
                 }
@@ -340,56 +351,35 @@ fun AuthScreen(
                             .fillMaxWidth()
                             .padding(bottom = 12.dp)
                             .neoBrutalSurface(
-                                backgroundColor = BrutalOrange,
-                                borderColor = BrutalBlack,
-                                shadowColor = BrutalBlack,
-                                borderWidth = 2.5.dp,
-                                shadowOffset = 4.dp
+                                backgroundColor = SignalCrimsonSurface,
+                                borderColor = SignalCrimson,
+                                shadowColor = MonoBlack
                             )
                             .padding(12.dp)
                     ) {
                         Text(
-                            text = "ERROR // ${errorMessage ?: ""}",
-                            color = Color.White,
+                            text = "AUTH ALERT // ${errorMessage ?: ""}",
+                            color = SignalCrimson,
                             style = MaterialTheme.typography.labelLarge
                         )
                     }
                 }
 
                 if (isLoading) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(58.dp)
-                            .neoBrutalSurface(
-                                backgroundColor = BrutalYellow,
-                                borderColor = BrutalBlack,
-                                shadowColor = BrutalBlack
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                color = BrutalBlack,
-                                strokeWidth = 3.dp
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "AUTHENTICATING HANZI CLOUD...",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = BrutalBlack
-                            )
-                        }
-                    }
+                    MonoShimmerSkeleton(
+                        height = 54.dp,
+                        cornerRadius = 8.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 } else {
-                    NeoBrutalButton(
+                    MonoButton(
                         text = "SIGN IN WITH GOOGLE →",
-                        icon = Icons.Default.CloudDone,
-                        backgroundColor = BrutalOrange,
-                        contentColor = Color.White,
-                        height = 56.dp,
-                        shadowOffset = 5.dp,
+                        icon = Icons.Default.Lock,
+                        backgroundColor = AcidLime,
+                        contentColor = MonoBlack,
+                        borderColor = AcidLime,
+                        height = 54.dp,
+                        useMediumHaptic = true,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("google_sign_in_button"),
@@ -401,10 +391,12 @@ fun AuthScreen(
                                 credentialManager = credentialManager,
                                 onAuthSuccess = {
                                     isLoading = false
+                                    haptics.success()
                                     onAuthSuccess()
                                 },
                                 onAuthError = { msg ->
                                     isLoading = false
+                                    haptics.error()
                                     errorMessage = msg
                                 },
                                 scope = scope,
@@ -423,9 +415,9 @@ fun AuthScreen(
 }
 
 @Composable
-private fun BrutalFeatureBlock(
+private fun MonoAuthFeatureRow(
     glyph: String,
-    badgeColor: Color,
+    badgeColor: androidx.compose.ui.graphics.Color,
     title: String,
     subtitle: String
 ) {
@@ -436,21 +428,21 @@ private fun BrutalFeatureBlock(
         NeoBrutalIllustratedEmblem(
             glyph = glyph,
             backgroundColor = badgeColor,
-            size = 46.dp
+            size = 42.dp
         )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 15.sp
+                style = MaterialTheme.typography.titleSmall,
+                color = AlabasterWhite,
+                fontSize = 13.sp
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.bodySmall,
+                color = MutedZinc
             )
         }
     }

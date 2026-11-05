@@ -1,295 +1,167 @@
 {
   "entities": {
-    "UserProfile": {
-      "title": "UserProfile",
-      "description": "Stores the personal Mandarin learner profile, study goals, gamification points, badges, offline pack statuses, and HSK progress. Clients must write FieldValue.serverTimestamp() for createdAt and updatedAt.",
+    "MonoUserProfile": {
+      "title": "MonoUserProfile",
+      "description": "User financial preferences, currency settings, monthly budget limit, and motion/haptic accessibility controls.",
       "type": "object",
       "properties": {
-        "userId": {
-          "type": "string",
-          "description": "The authenticated Firebase user UID owning this profile."
-        },
-        "displayName": {
-          "type": "string",
-          "description": "Display name of the learner."
-        },
-        "scriptMode": {
-          "type": "string",
-          "enum": ["SIMPLIFIED", "TRADITIONAL"],
-          "description": "Preferred Chinese character script."
-        },
-        "hskStandard": {
-          "type": "string",
-          "enum": ["HSK_2", "HSK_3"],
-          "description": "Selected HSK curriculum framework (Traditional HSK 2.0 vs HSK 3.0)."
-        },
-        "currentHskLevel": {
-          "type": "integer",
-          "description": "Current target HSK level (1 to 6)."
-        },
-        "dailyGoalMinutes": {
-          "type": "integer",
-          "description": "Daily study target in minutes."
-        },
-        "studyMinutesToday": {
-          "type": "integer",
-          "description": "Minutes studied today."
-        },
-        "totalStudyMinutes": {
-          "type": "integer",
-          "description": "Cumulative minutes studied."
-        },
-        "streakDays": {
-          "type": "integer",
-          "description": "Consecutive days of Mandarin study."
-        },
-        "points": {
-          "type": "integer",
-          "description": "Gamification points earned from lessons, flashcards, and pronunciation."
-        },
-        "completedLessonIds": {
-          "type": "array",
-          "description": "List of completed curriculum lesson IDs."
-        },
-        "masteredCharacterIds": {
-          "type": "array",
-          "description": "List of mastered Hanzi character IDs."
-        },
-        "unlockedBadgeIds": {
-          "type": "array",
-          "description": "List of unlocked milestone badge IDs."
-        },
-        "downloadedPackIds": {
-          "type": "array",
-          "description": "List of offline content pack IDs downloaded to device."
-        },
-        "listeningAccuracy": {
-          "type": "integer",
-          "description": "Average listening comprehension accuracy percentage (0-100)."
-        },
-        "readingAccuracy": {
-          "type": "integer",
-          "description": "Average reading comprehension accuracy percentage (0-100)."
-        },
-        "speakingAccuracy": {
-          "type": "integer",
-          "description": "Average speaking and tone contour accuracy percentage (0-100)."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Creation server timestamp (FieldValue.serverTimestamp())."
-        },
-        "updatedAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Last update server timestamp (FieldValue.serverTimestamp())."
-        }
+        "userId": { "type": "string", "description": "Authenticated Firebase UID" },
+        "displayName": { "type": "string", "description": "User display name" },
+        "currencyCode": { "type": "string", "enum": ["USD", "EUR", "GBP", "JPY", "INR", "KRW", "CHF", "CUSTOM"] },
+        "customCurrencySymbol": { "type": "string", "description": "Custom currency symbol when currencyCode is CUSTOM" },
+        "monthlyBudgetCents": { "type": "integer", "description": "Monthly overall spending budget in cents" },
+        "reducedMotionEnabled": { "type": "boolean", "description": "User override to reduce motion animations" },
+        "hapticsEnabled": { "type": "boolean", "description": "User preference for tactile haptic feedback" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp via FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp via FieldValue.serverTimestamp()" }
       },
       "required": [
         "userId",
         "displayName",
-        "scriptMode",
-        "hskStandard",
-        "currentHskLevel",
-        "dailyGoalMinutes",
-        "studyMinutesToday",
-        "totalStudyMinutes",
-        "streakDays",
-        "points",
-        "completedLessonIds",
-        "masteredCharacterIds",
-        "unlockedBadgeIds",
-        "downloadedPackIds",
-        "listeningAccuracy",
-        "readingAccuracy",
-        "speakingAccuracy",
+        "currencyCode",
+        "customCurrencySymbol",
+        "monthlyBudgetCents",
+        "reducedMotionEnabled",
+        "hapticsEnabled",
         "createdAt",
         "updatedAt"
       ]
     },
-    "FlashcardItem": {
-      "title": "FlashcardItem",
-      "description": "A Mandarin vocabulary flashcard with SM-2 spaced repetition state. Clients must write FieldValue.serverTimestamp() for createdAt and updatedAt.",
+    "MonoTransaction": {
+      "title": "MonoTransaction",
+      "description": "An expense or income ledger entry supporting category attribution, receipt notes, and split breakdowns.",
       "type": "object",
       "properties": {
-        "userId": {
-          "type": "string",
-          "description": "Owner Firebase UID."
-        },
-        "simplified": {
-          "type": "string",
-          "description": "Simplified Chinese characters."
-        },
-        "traditional": {
-          "type": "string",
-          "description": "Traditional Chinese characters."
-        },
-        "pinyin": {
-          "type": "string",
-          "description": "Pinyin with tone marks."
-        },
-        "english": {
-          "type": "string",
-          "description": "English definition."
-        },
-        "partOfSpeech": {
-          "type": "string",
-          "description": "Grammatical part of speech."
-        },
-        "exampleChinese": {
-          "type": "string",
-          "description": "Example sentence in Chinese."
-        },
-        "examplePinyin": {
-          "type": "string",
-          "description": "Pinyin for the example sentence."
-        },
-        "exampleEnglish": {
-          "type": "string",
-          "description": "English translation of the example sentence."
-        },
-        "hskLevel": {
-          "type": "integer",
-          "description": "HSK level (1-6)."
-        },
-        "category": {
-          "type": "string",
-          "description": "Thematic category."
-        },
-        "status": {
-          "type": "string",
-          "enum": ["LEARNING", "FAMILIAR", "MASTERED"],
-          "description": "Current mastery status."
-        },
-        "intervalDays": {
-          "type": "integer",
-          "description": "Current spaced repetition interval in days."
-        },
-        "easeFactor": {
-          "type": "integer",
-          "description": "SM-2 ease factor scaled by 100 (e.g. 250 = 2.50)."
-        },
-        "repetitions": {
-          "type": "integer",
-          "description": "Consecutive successful repetitions."
-        },
-        "nextReviewEpochDay": {
-          "type": "integer",
-          "description": "Epoch day when card is next due for review."
-        },
-        "isFavorite": {
-          "type": "boolean",
-          "description": "Whether the user bookmarked this vocabulary item."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Creation server timestamp (FieldValue.serverTimestamp())."
-        },
-        "updatedAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Last update server timestamp (FieldValue.serverTimestamp())."
-        }
-      },
-      "required": [
-        "userId",
-        "simplified",
-        "traditional",
-        "pinyin",
-        "english",
-        "partOfSpeech",
-        "exampleChinese",
-        "examplePinyin",
-        "exampleEnglish",
-        "hskLevel",
-        "category",
-        "status",
-        "intervalDays",
-        "easeFactor",
-        "repetitions",
-        "nextReviewEpochDay",
-        "isFavorite",
-        "createdAt",
-        "updatedAt"
-      ]
-    },
-    "PersonalNote": {
-      "title": "PersonalNote",
-      "description": "A personal Chinese notebook entry with sentence, Pinyin, translation, and grammar breakdown. Clients must write FieldValue.serverTimestamp() for createdAt and updatedAt.",
-      "type": "object",
-      "properties": {
-        "userId": {
-          "type": "string",
-          "description": "Owner Firebase UID."
-        },
-        "title": {
-          "type": "string",
-          "description": "Note title or topic."
-        },
-        "chineseSentence": {
-          "type": "string",
-          "description": "Chinese sentence or phrase."
-        },
-        "pinyin": {
-          "type": "string",
-          "description": "Pinyin transcription."
-        },
-        "englishTranslation": {
-          "type": "string",
-          "description": "English meaning."
-        },
-        "grammarNotes": {
-          "type": "string",
-          "description": "Grammar and usage notes."
-        },
-        "folder": {
-          "type": "string",
-          "description": "Notebook folder category."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Creation server timestamp (FieldValue.serverTimestamp())."
-        },
-        "updatedAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Last update server timestamp (FieldValue.serverTimestamp())."
-        }
+        "userId": { "type": "string", "description": "Authenticated Firebase UID" },
+        "title": { "type": "string", "description": "Merchant or transaction description" },
+        "amountCents": { "type": "integer", "description": "Transaction value in cents (> 0)" },
+        "type": { "type": "string", "enum": ["EXPENSE", "INCOME"] },
+        "categoryId": { "type": "string", "description": "Category identifier" },
+        "categoryName": { "type": "string", "description": "Display name of category" },
+        "timestampMillis": { "type": "integer", "description": "Transaction occurrence epoch milliseconds" },
+        "receiptNote": { "type": "string", "description": "Optional receipt memo or attachment note" },
+        "isSplit": { "type": "boolean", "description": "Whether the transaction is split across participants or categories" },
+        "splitSummary": { "type": "string", "description": "Compact formatted summary of split shares" },
+        "isRecurringInstance": { "type": "boolean", "description": "Whether generated from a recurring subscription" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp via FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp via FieldValue.serverTimestamp()" }
       },
       "required": [
         "userId",
         "title",
-        "chineseSentence",
-        "pinyin",
-        "englishTranslation",
-        "grammarNotes",
-        "folder",
+        "amountCents",
+        "type",
+        "categoryId",
+        "categoryName",
+        "timestampMillis",
+        "receiptNote",
+        "isSplit",
+        "splitSummary",
+        "isRecurringInstance",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MonoCategoryBudget": {
+      "title": "MonoCategoryBudget",
+      "description": "Per-category monthly spending limit and warning threshold.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Authenticated Firebase UID" },
+        "categoryId": { "type": "string", "description": "Category key" },
+        "categoryName": { "type": "string", "description": "Category label" },
+        "limitCents": { "type": "integer", "description": "Monthly spending cap in cents" },
+        "alertThresholdPercent": { "type": "integer", "description": "Alert percentage threshold (1-100)" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp via FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp via FieldValue.serverTimestamp()" }
+      },
+      "required": [
+        "userId",
+        "categoryId",
+        "categoryName",
+        "limitCents",
+        "alertThresholdPercent",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MonoSavingsGoal": {
+      "title": "MonoSavingsGoal",
+      "description": "Dedicated savings vault with target amount, current saved balance, and milestone tracking.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Authenticated Firebase UID" },
+        "title": { "type": "string", "description": "Savings vault name" },
+        "targetCents": { "type": "integer", "description": "Target savings goal in cents" },
+        "savedCents": { "type": "integer", "description": "Current accumulated amount in cents" },
+        "deadlineMillis": { "type": "integer", "description": "Target completion epoch milliseconds" },
+        "accentHex": { "type": "string", "description": "Hex color tag for vault card" },
+        "isCompleted": { "type": "boolean", "description": "Whether savedCents >= targetCents" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp via FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp via FieldValue.serverTimestamp()" }
+      },
+      "required": [
+        "userId",
+        "title",
+        "targetCents",
+        "savedCents",
+        "deadlineMillis",
+        "accentHex",
+        "isCompleted",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MonoRecurringBill": {
+      "title": "MonoRecurringBill",
+      "description": "Recurring subscription or scheduled bill with due-day tracking and one-tap payment recording.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Authenticated Firebase UID" },
+        "title": { "type": "string", "description": "Subscription or bill merchant name" },
+        "amountCents": { "type": "integer", "description": "Recurring charge in cents" },
+        "categoryId": { "type": "string", "description": "Associated category ID" },
+        "cadence": { "type": "string", "enum": ["MONTHLY", "WEEKLY", "YEARLY"] },
+        "nextDueDayOfMonth": { "type": "integer", "description": "Day of month bill is due (1-31)" },
+        "isAutoRemind": { "type": "boolean", "description": "Whether to surface upcoming bill alerts" },
+        "lastPaidMonthKey": { "type": "string", "description": "YYYY-MM marker of last recorded payment" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp via FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp via FieldValue.serverTimestamp()" }
+      },
+      "required": [
+        "userId",
+        "title",
+        "amountCents",
+        "categoryId",
+        "cadence",
+        "nextDueDayOfMonth",
+        "isAutoRemind",
+        "lastPaidMonthKey",
         "createdAt",
         "updatedAt"
       ]
     }
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": {
-        "$ref": "#/entities/UserProfile"
-      },
-      "description": "Per-user Mandarin learning profile and gamification state."
+    "/users/{userId}/profile/{docId}": {
+      "schema": { "$ref": "#/entities/MonoUserProfile" },
+      "description": "User financial settings and preferences document (docId = settings)"
     },
-    "/users/{userId}/flashcards/{cardId}": {
-      "schema": {
-        "$ref": "#/entities/FlashcardItem"
-      },
-      "description": "Per-user spaced repetition flashcards and custom vocabulary."
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/MonoTransaction" },
+      "description": "Per-user expense and income transactions"
     },
-    "/users/{userId}/notes/{noteId}": {
-      "schema": {
-        "$ref": "#/entities/PersonalNote"
-      },
-      "description": "Per-user personal Mandarin notebook entries."
+    "/users/{userId}/budgets/{budgetId}": {
+      "schema": { "$ref": "#/entities/MonoCategoryBudget" },
+      "description": "Per-user category spending budgets"
+    },
+    "/users/{userId}/goals/{goalId}": {
+      "schema": { "$ref": "#/entities/MonoSavingsGoal" },
+      "description": "Per-user savings vaults and milestones"
+    },
+    "/users/{userId}/bills/{billId}": {
+      "schema": { "$ref": "#/entities/MonoRecurringBill" },
+      "description": "Per-user recurring bills and subscriptions"
     }
   }
 }

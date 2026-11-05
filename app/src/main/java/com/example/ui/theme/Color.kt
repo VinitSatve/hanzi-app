@@ -3,60 +3,39 @@ package com.example.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // ============================================================================
-// NEO-BRUTALIST HIGH-CONTRAST COLOR SYSTEM
-// Off-White, Electric Yellow, Cobalt Blue, Vivid Orange, Acid Mint & Pure Black
+// MONO FINANCE — DARK NEO-BRUTALIST + ACID LIME (#D7FF00) COLOR SYSTEM
 // ============================================================================
 
-val BrutalOffWhite = Color(0xFFFDFBF4)
-val BrutalCream = Color(0xFFF3EFE2)
-val BrutalWhite = Color(0xFFFFFFFF)
-val BrutalBlack = Color(0xFF0B0B0B)
-val BrutalInk = Color(0xFF141416)
-val BrutalMutedInk = Color(0xFF3F3F46)
+val MonoBlack = Color(0xFF070708)
+val MonoObsidian = Color(0xFF111114)
+val MonoSlateCard = Color(0xFF18181D)
+val MonoSlateElevated = Color(0xFF202027)
+val MonoBorderStructural = Color(0xFF2C2C35)
+val MonoBorderStrong = Color(0xFF3E3E4A)
 
-// Primary High-Voltage Accents
-val BrutalYellow = Color(0xFFFFE600)
-val BrutalYellowSoft = Color(0xFFFFF380)
-val BrutalCobalt = Color(0xFF1E40FF)
-val BrutalCobaltSoft = Color(0xFFDCE4FF)
-val BrutalOrange = Color(0xFFFF5416)
-val BrutalOrangeSoft = Color(0xFFFFDDD0)
-val BrutalMint = Color(0xFF00E575)
-val BrutalMintSoft = Color(0xFFC8F9DF)
-val BrutalPink = Color(0xFFFF3B8B)
-val BrutalPurple = Color(0xFF8B5CF6)
+// Signature Electric Acid Lime Accent
+val AcidLime = Color(0xFFD7FF00)
+val AcidLimeDim = Color(0xFF9AB800)
+val AcidLimeSurface = Color(0xFF1F2506)
 
-// Night-Mode Neo-Brutalist Counterparts (High-Contrast Dark Editorial)
-val BrutalDarkBg = Color(0xFF121216)
-val BrutalDarkSurface = Color(0xFF1C1C22)
-val BrutalDarkCard = Color(0xFF24242C)
-val BrutalDarkText = Color(0xFFFDFBF4)
-val BrutalDarkMuted = Color(0xFFC4C4CE)
+// Financial Semantic Colors
+val CyberMint = Color(0xFF00F59B)
+val CyberMintSurface = Color(0xFF07261B)
+val VoltageAmber = Color(0xFFFFB800)
+val VoltageAmberSurface = Color(0xFF291E04)
+val SignalCrimson = Color(0xFFFF3B5C)
+val SignalCrimsonSurface = Color(0xFF2B0A12)
+val ElectricCyan = Color(0xFF00E5FF)
 
-// Semantic Aliases Used Across Screens
-val SealCrimson = BrutalOrange
-val SealCrimsonSoft = BrutalOrangeSoft
-val SealCrimsonContainer = BrutalOrangeSoft
+// High-Contrast Typography Colors
+val AlabasterWhite = Color(0xFFF6F6F4)
+val MutedZinc = Color(0xFF9A9AA6)
+val DimSteel = Color(0xFF636370)
 
-val JadeEmerald = BrutalMint
-val JadeEmeraldSoft = BrutalMintSoft
-val AmberGold = BrutalYellow
-val IndigoAccent = BrutalCobalt
-
-val CharcoalBg = BrutalDarkBg
-val CharcoalSurface = BrutalDarkSurface
-val CharcoalCard = BrutalDarkCard
-val CharcoalElevated = Color(0xFF2E2E38)
-val CharcoalBorder = BrutalBlack
-
-val IvoryBg = BrutalOffWhite
-val IvorySurface = BrutalWhite
-val IvoryCard = BrutalCream
-val IvoryBorder = BrutalBlack
-
-val TextPrimaryDark = BrutalDarkText
-val TextSecondaryDark = BrutalDarkMuted
-val TextMutedDark = Color(0xFF9CA3AF)
-
-val TextPrimaryLight = BrutalBlack
-val TextSecondaryLight = BrutalMutedInk
+// Legacy compatibility aliases so any existing test references compile cleanly
+val BrutalBlack = MonoBlack
+val BrutalWhite = AlabasterWhite
+val BrutalYellow = AcidLime
+val BrutalOrange = SignalCrimson
+val BrutalCobalt = ElectricCyan
+val BrutalMint = CyberMint

@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Hanzi"
+rootProject.name = "MONO"
 
 include(":app")
