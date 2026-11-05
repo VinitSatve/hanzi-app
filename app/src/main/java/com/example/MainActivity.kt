@@ -158,12 +158,14 @@ fun HanziAuthenticatedWorkspace(currentUserId: String) {
                 }
                 val databaseId = app.getString(R.string.firestore_database_id)
                 val db = FirebaseFirestore.getInstance(databaseId)
-                HanziViewModel(HanziRepository(db), currentUserId)
+                HanziViewModel(HanziRepository(db), currentUserId, app.applicationContext)
             }
         }
     )
 
     val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+    val curriculumManifest by viewModel.curriculumManifest.collectAsStateWithLifecycle()
+    val offlineJsonCacheStats by viewModel.offlineJsonCacheStats.collectAsStateWithLifecycle()
     val profileUiState by viewModel.profileState.collectAsStateWithLifecycle()
     val flashcardsUiState by viewModel.flashcardsState.collectAsStateWithLifecycle()
     val notesUiState by viewModel.notesState.collectAsStateWithLifecycle()
@@ -171,6 +173,8 @@ fun HanziAuthenticatedWorkspace(currentUserId: String) {
     val pronunciationEvaluation by viewModel.pronunciationEvaluation.collectAsStateWithLifecycle()
     val speakingAiState by viewModel.speakingAiState.collectAsStateWithLifecycle()
     val tutorMessages by viewModel.tutorMessages.collectAsStateWithLifecycle()
+    val tutorConversations by viewModel.tutorConversations.collectAsStateWithLifecycle()
+    val activeConversationId by viewModel.activeConversationId.collectAsStateWithLifecycle()
     val tutorAiState by viewModel.tutorAiState.collectAsStateWithLifecycle()
     val sentenceBreakdown by viewModel.sentenceBreakdown.collectAsStateWithLifecycle()
     val breakdownAiState by viewModel.breakdownAiState.collectAsStateWithLifecycle()
@@ -190,11 +194,11 @@ fun HanziAuthenticatedWorkspace(currentUserId: String) {
     val activeNotes = (notesUiState as? DataUiState.Success)?.data ?: emptyList()
 
     val destinations = listOf(
-        NavDestination("Home", "首", Icons.Filled.Home, Icons.Outlined.Home, HanziTheme.ElectricYellow, "nav_home"),
-        NavDestination("Learn", "学", Icons.AutoMirrored.Filled.MenuBook, Icons.AutoMirrored.Outlined.MenuBook, HanziTheme.VividOrange, "nav_learn"),
-        NavDestination("Practice", "练", Icons.Filled.GraphicEq, Icons.Outlined.GraphicEq, HanziTheme.CobaltBlue, "nav_practice"),
-        NavDestination("Notebook", "记", Icons.Filled.Book, Icons.Outlined.Book, HanziTheme.AcidMint, "nav_notebook"),
-        NavDestination("Progress", "进", Icons.Filled.Analytics, Icons.Outlined.Analytics, HanziTheme.ElectricYellow, "nav_progress")
+        NavDestination("Home", "首", Icons.Filled.Home, Icons.Outlined.Home, HanziTheme.PureBlack, "nav_home"),
+        NavDestination("Learn", "学", Icons.AutoMirrored.Filled.MenuBook, Icons.AutoMirrored.Outlined.MenuBook, HanziTheme.PureBlack, "nav_learn"),
+        NavDestination("Practice", "练", Icons.Filled.GraphicEq, Icons.Outlined.GraphicEq, HanziTheme.PureBlack, "nav_practice"),
+        NavDestination("Tutor", "师", Icons.Filled.Book, Icons.Outlined.Book, HanziTheme.PureBlack, "nav_notebook"),
+        NavDestination("Progress", "进", Icons.Filled.Analytics, Icons.Outlined.Analytics, HanziTheme.PureBlack, "nav_progress")
     )
 
     HanziTheme(darkTheme = isDarkTheme) {
@@ -228,8 +232,8 @@ fun HanziAuthenticatedWorkspace(currentUserId: String) {
                                     backgroundColor = HanziTheme.colors.electricYellow,
                                     borderColor = HanziTheme.colors.borderBlack,
                                     shadowColor = HanziTheme.shadows.shadowColor,
-                                    borderWidth = HanziTheme.borders.defaultWidth,
-                                    shadowOffset = HanziTheme.shadows.defaultOffset,
+                                    borderWidth = HanziTheme.borders.thinWidth,
+                                    shadowOffset = 3.dp,
                                     cornerRadius = HanziTheme.borders.cornerRadius
                                 )
                                 .clickable { viewModel.clearStatusBanner() }
@@ -242,7 +246,7 @@ fun HanziAuthenticatedWorkspace(currentUserId: String) {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "★ ${statusBanner ?: ""}",
+                                    text = "● ${statusBanner ?: ""}",
                                     style = MaterialTheme.typography.labelLarge,
                                     color = BrutalBlack,
                                     fontWeight = FontWeight.Bold,
@@ -320,7 +324,9 @@ fun HanziAuthenticatedWorkspace(currentUserId: String) {
                                         hskLevel = lvl,
                                         category = "Personal"
                                     )
-                                }
+                                },
+                                curriculumManifest = curriculumManifest,
+                                offlineJsonCacheStats = offlineJsonCacheStats
                             )
                             2 -> PracticeScreen(
                                 initialSubTab = practiceInitialSubTab,
@@ -354,11 +360,22 @@ fun HanziAuthenticatedWorkspace(currentUserId: String) {
                                 initialSubTab = notebookInitialSubTab,
                                 notes = activeNotes,
                                 tutorMessages = tutorMessages,
+                                tutorConversations = tutorConversations,
+                                activeConversationId = activeConversationId,
                                 tutorAiState = tutorAiState,
                                 sentenceBreakdown = sentenceBreakdown,
                                 breakdownAiState = breakdownAiState,
                                 onSendTutorMessage = { text, mode ->
                                     viewModel.sendTutorMessage(text, mode)
+                                },
+                                onStartNewConversation = { mode ->
+                                    viewModel.startNewTutorConversation(mode)
+                                },
+                                onSelectConversation = { threadId ->
+                                    viewModel.selectTutorConversation(threadId)
+                                },
+                                onRetryTutorMessage = {
+                                    viewModel.retryLastTutorMessage()
                                 },
                                 onExplainSentence = { sentence ->
                                     viewModel.explainChineseSentence(sentence)
@@ -385,7 +402,8 @@ fun HanziAuthenticatedWorkspace(currentUserId: String) {
                                         onSignOutComplete = {},
                                         scope = scope
                                     )
-                                }
+                                },
+                                offlineJsonCacheStats = offlineJsonCacheStats
                             )
                         }
                     }
@@ -406,17 +424,16 @@ private fun NeoBrutalBottomNavigationBar(
             .fillMaxWidth()
             .background(HanziTheme.colors.surface)
     ) {
-        // Thick 3dp pure black architectural divider
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(HanziTheme.borders.defaultWidth)
+                .height(HanziTheme.borders.thinWidth)
                 .background(HanziTheme.colors.borderBlack)
         )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .padding(horizontal = 10.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -429,34 +446,25 @@ private fun NeoBrutalBottomNavigationBar(
                     animationSpec = tween(60),
                     label = "navItemPress"
                 )
-                val fgColor = if (isSelected) {
-                    if (dest.accentColor == HanziTheme.CobaltBlue || dest.accentColor == HanziTheme.VividOrange) {
-                        Color.White
-                    } else {
-                        HanziTheme.PureBlack
-                    }
-                } else {
-                    HanziTheme.colors.onSurface
-                }
+                val fgColor = if (isSelected) Color.White else HanziTheme.colors.onSurface
 
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(58.dp)
+                        .height(54.dp)
                         .offset(x = pressOffset, y = pressOffset)
                         .then(
                             if (isSelected) {
                                 Modifier.neoBrutalSurface(
-                                    backgroundColor = dest.accentColor,
+                                    backgroundColor = HanziTheme.PureBlack,
                                     borderColor = HanziTheme.colors.borderBlack,
-                                    shadowColor = HanziTheme.shadows.shadowColor,
-                                    borderWidth = HanziTheme.borders.defaultWidth,
-                                    shadowOffset = (HanziTheme.shadows.defaultOffset - pressOffset).coerceAtLeast(1.dp),
+                                    shadowColor = HanziTheme.VividOrange,
+                                    borderWidth = HanziTheme.borders.thinWidth,
+                                    shadowOffset = (3.dp - pressOffset).coerceAtLeast(1.dp),
                                     cornerRadius = HanziTheme.borders.cornerRadius
                                 )
                             } else {
-                                Modifier
-                                    .background(Color.Transparent)
+                                Modifier.background(Color.Transparent)
                             }
                         )
                         .clickable(
@@ -472,21 +480,20 @@ private fun NeoBrutalBottomNavigationBar(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (isSelected) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .background(HanziTheme.VividOrange)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                            }
                             Icon(
                                 imageVector = if (isSelected) dest.selectedIcon else dest.unselectedIcon,
                                 contentDescription = dest.label,
                                 tint = fgColor,
                                 modifier = Modifier.size(18.dp)
                             )
-                            if (isSelected) {
-                                Spacer(modifier = Modifier.width(3.dp))
-                                Text(
-                                    text = dest.hanziStamp,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = fgColor
-                                )
-                            }
                         }
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(

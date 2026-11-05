@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.curriculum.CurriculumCatalog
 import com.example.data.curriculum.CurriculumExtras
+import com.example.data.curriculum.OfflineJsonCacheStats
 import com.example.data.model.FlashcardItem
 import com.example.data.model.UserProfile
 import com.example.ui.theme.BrutalBlack
@@ -68,7 +69,8 @@ fun ProgressScreen(
     onDownloadPack: (String) -> Unit,
     onRemovePack: (String) -> Unit,
     onUpdateDailyGoal: (Int) -> Unit,
-    onSignOut: () -> Unit
+    onSignOut: () -> Unit,
+    offlineJsonCacheStats: OfflineJsonCacheStats? = null
 ) {
     var selectedSubTab by remember { mutableIntStateOf(0) }
 
@@ -91,6 +93,7 @@ fun ProgressScreen(
             2 -> OfflineDownloadManagerTab(
                 profile = profile,
                 downloadProgressMap = downloadProgressMap,
+                offlineJsonCacheStats = offlineJsonCacheStats,
                 onDownloadPack = onDownloadPack,
                 onRemovePack = onRemovePack
             )
@@ -106,8 +109,9 @@ private fun AnalyticsOverviewTab(
     onUpdateDailyGoal: (Int) -> Unit,
     onSignOut: () -> Unit
 ) {
+    val newCount = flashcards.count { it.status == "NEW" }
     val learningCount = flashcards.count { it.status == "LEARNING" }
-    val familiarCount = flashcards.count { it.status == "FAMILIAR" }
+    val familiarCount = flashcards.count { it.status == "PRACTICING" || it.status == "FAMILIAR" }
     val masteredCount = flashcards.count { it.status == "MASTERED" }
 
     val hskReadiness = ((profile.completedLessonIds.size.toFloat() / maxOf(1, CurriculumCatalog.lessons.size)) * 50f +
@@ -258,7 +262,7 @@ private fun AnalyticsOverviewTab(
                     ) {
                         Column {
                             Text(
-                                text = "SM-2 RETENTION // $learningCount LEARNING · $familiarCount FAMILIAR · $masteredCount MASTERED",
+                                text = "VOCABULARY MASTERY // $newCount NEW · $learningCount LEARNING · $familiarCount PRACTICING · $masteredCount MASTERED",
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -443,10 +447,12 @@ private fun GamificationBadgesTab(profile: UserProfile) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun OfflineDownloadManagerTab(
     profile: UserProfile,
     downloadProgressMap: Map<String, Int>,
+    offlineJsonCacheStats: OfflineJsonCacheStats?,
     onDownloadPack: (String) -> Unit,
     onRemovePack: (String) -> Unit
 ) {
@@ -470,7 +476,7 @@ private fun OfflineDownloadManagerTab(
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = "Select HSK lessons, vocabulary audio packs, and grammar modules to cache locally for full offline study.",
+                text = "Select HSK lessons, vocabulary audio packs, and grammar modules to cache locally as JSON for full offline study.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -509,6 +515,30 @@ private fun OfflineDownloadManagerTab(
                     fillColor = BrutalMint,
                     trackColor = BrutalWhite
                 )
+                if (offlineJsonCacheStats != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "JSON CACHE ENGINE: ${offlineJsonCacheStats.cachedLevelFiles.size} local .json file(s) (${offlineJsonCacheStats.totalBytesOnDisk / 1024} KB on disk)",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (offlineJsonCacheStats.cachedLevelFiles.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            offlineJsonCacheStats.cachedLevelFiles.forEach { fileName ->
+                                NeoBrutalBadge(
+                                    text = fileName,
+                                    backgroundColor = BrutalWhite,
+                                    textColor = BrutalBlack
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
 

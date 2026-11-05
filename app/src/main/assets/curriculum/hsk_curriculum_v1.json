@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 1,
+  "lastUpdatedIso": "2026-11-05T00:00:00Z",
+  "hskStandardsSupported": ["HSK_2", "HSK_3"],
+  "levels": [
+    {
+      "level": 1,
+      "title": "HSK 1 · Novice Survival Foundations",
+      "cefrBand": "CEFR A1",
+      "hsk2WordCount": 150,
+      "hsk3WordCount": 500,
+      "description": "Essential greetings, numbers, family, time, food, daily SVO sentences, and core particles (是, 有, 在, 吗).",
+      "units": [
+        {
+          "id": "unit_hsk1_u1",
+          "stage": 1,
+          "unitNumber": 1,
+          "title": "Unit 1 · Greetings, Identity & Pronouns",
+          "description": "Introduce yourself, ask polite questions with 吗 and 呢, and use equative verb 是.",
+          "hsk2VocabTarget": 75,
+          "hsk3VocabTarget": 250,
+          "grammarTargets": ["Subject + 是 + Noun", "Yes/No Questions with 吗", "Degree Adverb 很 + Adjective"],
+          "vocabularyTargets": ["你好", "谢谢", "不客气", "学生", "老师", "朋友"],
+          "lessonIds": ["hsk1_l1", "hsk1_l2"]
+        },
+        {
+          "id": "unit_hsk1_u2",
+          "stage": 1,
+          "unitNumber": 2,
+          "title": "Unit 2 · Time, Family, Dining & Checkpoint",
+          "description": "Express possession with 有/没有, locations with 在, ordering food, and HSK 1 mastery test.",
+          "hsk2VocabTarget": 150,
+          "hsk3VocabTarget": 500,
+          "grammarTargets": ["有 / 没有 Possession", "Subject + Time + 在 + Location + Verb"],
+          "vocabularyTargets": ["现在", "米饭", "喝茶", "医院", "水"],
+          "lessonIds": ["hsk1_l3", "hsk1_test"],
+          "prerequisiteUnitId": "unit_hsk1_u1"
+        }
+      ]
+    },
+    {
+      "level": 2,
+      "title": "HSK 2 · Elementary Daily Communication",
+      "cefrBand": "CEFR A2",
+      "hsk2WordCount": 300,
+      "hsk3WordCount": 1272,
+      "description": "Comparisons (比), completed vs experiential aspect (了/过), structural particles (的/地/得), and travel dialogues.",
+      "units": [
+        {
+          "id": "unit_hsk2_u1",
+          "stage": 2,
+          "unitNumber": 1,
+          "title": "Unit 1 · Comparisons, Aspect & Concessions",
+          "description": "Compare options with 比, contrast past experience (过) with completion (了), and link clauses with 虽然…但是…",
+          "hsk2VocabTarget": 300,
+          "hsk3VocabTarget": 1272,
+          "grammarTargets": ["A 比 B + Adjective", "Verb + 过 vs Verb + 了", "虽然…但是…", "的 / 地 / 得"],
+          "vocabularyTargets": ["准备", "因为", "所以", "运动", "已经", "虽然"],
+          "lessonIds": ["hsk2_l1", "hsk2_l2", "hsk2_test"],
+          "prerequisiteUnitId": "unit_hsk1_u2"
+        }
+      ]
+    },
+    {
+      "level": 3,
+      "title": "HSK 3 · Intermediate Fluency & Complements",
+      "cefrBand": "CEFR B1",
+      "hsk2WordCount": 600,
+      "hsk3WordCount": 2245,
+      "description": "Object manipulation with 把, passive voice with 被, directional/potential complements, and workplace communication.",
+      "units": [
+        {
+          "id": "unit_hsk3_u1",
+          "stage": 3,
+          "unitNumber": 1,
+          "title": "Unit 1 · Disposal (把), Passive (被) & Complements",
+          "description": "Master object manipulation with 把, passive voice with 被, and directional complements.",
+          "hsk2VocabTarget": 600,
+          "hsk3VocabTarget": 2245,
+          "grammarTargets": ["Subject + 把 + Object + Verb + Result", "Receiver + 被 + Agent + Verb + Result"],
+          "vocabularyTargets": ["环境", "决定", "影响", "解决", "参加"],
+          "lessonIds": ["hsk3_l1", "hsk3_l2", "hsk3_test"],
+          "prerequisiteUnitId": "unit_hsk2_u1"
+        }
+      ]
+    },
+    {
+      "level": 4,
+      "title": "HSK 4 · Upper-Intermediate Discourse & Society",
+      "cefrBand": "CEFR B2",
+      "hsk2WordCount": 1200,
+      "hsk3WordCount": 3245,
+      "description": "Formal discourse connectors (无论…都…, 不仅…而且…), professional registers, and multi-clause reading.",
+      "units": [
+        {
+          "id": "unit_hsk4_u1",
+          "stage": 4,
+          "unitNumber": 1,
+          "title": "Unit 1 · Formal Connectors & Professional Registers",
+          "description": "Build structured arguments using 无论…都…, 不仅…而且…, and 即使…也…",
+          "hsk2VocabTarget": 1200,
+          "hsk3VocabTarget": 3245,
+          "grammarTargets": ["无论…都…", "不仅…而且…", "即使…也…"],
+          "vocabularyTargets": ["坚持", "积累", "责任", "鼓励", "耐心"],
+          "lessonIds": ["hsk4_l1", "hsk4_test"],
+          "prerequisiteUnitId": "unit_hsk3_u1"
+        }
+      ]
+    },
+    {
+      "level": 5,
+      "title": "HSK 5 · Advanced Media, Literature & Idioms",
+      "cefrBand": "CEFR C1",
+      "hsk2WordCount": 2500,
+      "hsk3WordCount": 4316,
+      "description": "Four-character idioms (成语), effect-first causal frames (之所以…是因为…), and newspaper/essay analysis.",
+      "units": [
+        {
+          "id": "unit_hsk5_u1",
+          "stage": 5,
+          "unitNumber": 1,
+          "title": "Unit 1 · Chengyu & Analytical Discourse",
+          "description": "Deploy classical four-character idioms (画蛇添足, 半途而废) and effect-first causal frames.",
+          "hsk2VocabTarget": 2500,
+          "hsk3VocabTarget": 4316,
+          "grammarTargets": ["之所以…是因为…", "古典成语四字格"],
+          "vocabularyTargets": ["画蛇添足", "半途而废", "效率", "趋势"],
+          "lessonIds": ["hsk5_l1", "hsk5_test"],
+          "prerequisiteUnitId": "unit_hsk4_u1"
+        }
+      ]
+    },
+    {
+      "level": 6,
+      "title": "HSK 6 · Mastery Rhetoric & Classical Registers",
+      "cefrBand": "CEFR C2",
+      "hsk2WordCount": 5000,
+      "hsk3WordCount": 5456,
+      "description": "Literary Chinese particles, rhetorical preference frames (与其…不如…), and academic synthesis.",
+      "units": [
+        {
+          "id": "unit_hsk6_u1",
+          "stage": 6,
+          "unitNumber": 1,
+          "title": "Unit 1 · Literary Particles & Rhetorical Mastery",
+          "description": "Synthesize formal arguments with 与其…不如…, 举一反三, and 潜移默化.",
+          "hsk2VocabTarget": 5000,
+          "hsk3VocabTarget": 5456,
+          "grammarTargets": ["与其…不如…", "宁可…也不…"],
+          "vocabularyTargets": ["举一反三", "潜移默化", "深思熟虑"],
+          "lessonIds": ["hsk6_l1", "hsk6_test"],
+          "prerequisiteUnitId": "unit_hsk5_u1"
+        }
+      ]
+    }
+  ]
+}

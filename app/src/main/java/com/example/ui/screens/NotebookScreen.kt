@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BookmarkAdded
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -48,6 +50,7 @@ import com.example.R
 import com.example.data.model.PersonalNote
 import com.example.ui.theme.BrutalBlack
 import com.example.ui.theme.BrutalCobalt
+import com.example.ui.theme.BrutalCream
 import com.example.ui.theme.BrutalMint
 import com.example.ui.theme.BrutalOrange
 import com.example.ui.theme.BrutalWhite
@@ -63,16 +66,22 @@ import com.example.ui.theme.neoBrutalSurface
 import com.example.ui.viewmodel.AiUiState
 import com.example.ui.viewmodel.SentenceBreakdownResult
 import com.example.ui.viewmodel.TutorChatMessage
+import com.example.ui.viewmodel.TutorConversationThread
 
 @Composable
 fun NotebookScreen(
     initialSubTab: Int = 0,
     notes: List<PersonalNote>,
     tutorMessages: List<TutorChatMessage>,
+    tutorConversations: List<TutorConversationThread> = emptyList(),
+    activeConversationId: String = "",
     tutorAiState: AiUiState,
     sentenceBreakdown: SentenceBreakdownResult?,
     breakdownAiState: AiUiState,
     onSendTutorMessage: (text: String, mode: String) -> Unit,
+    onStartNewConversation: (mode: String) -> Unit = {},
+    onSelectConversation: (threadId: String) -> Unit = {},
+    onRetryTutorMessage: () -> Unit = {},
     onExplainSentence: (sentence: String) -> Unit,
     onAddNote: (title: String, chinese: String, pinyin: String, english: String, grammar: String, folder: String) -> Unit,
     onDeleteNote: (String) -> Unit,
@@ -82,7 +91,7 @@ fun NotebookScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         NeoBrutalTabRow(
-            tabs = listOf("AI Mandarin Tutor", "Explain Sentence", "Personal Notebook"),
+            tabs = listOf("AI Mandarin Tutor", "Sentence Parser", "Study Notebook"),
             selectedIndex = selectedSubTab,
             onSelect = { selectedSubTab = it },
             tagPrefix = "notebook_tab"
@@ -91,8 +100,13 @@ fun NotebookScreen(
         when (selectedSubTab) {
             0 -> AiMandarinTutorView(
                 messages = tutorMessages,
+                conversations = tutorConversations,
+                activeConversationId = activeConversationId,
                 aiState = tutorAiState,
                 onSendMessage = onSendTutorMessage,
+                onStartNewConversation = onStartNewConversation,
+                onSelectConversation = onSelectConversation,
+                onRetry = onRetryTutorMessage,
                 onSpeak = onSpeak
             )
             1 -> ExplainSentenceView(
@@ -125,16 +139,22 @@ fun NotebookScreen(
 @Composable
 private fun AiMandarinTutorView(
     messages: List<TutorChatMessage>,
+    conversations: List<TutorConversationThread>,
+    activeConversationId: String,
     aiState: AiUiState,
     onSendMessage: (String, String) -> Unit,
+    onStartNewConversation: (String) -> Unit,
+    onSelectConversation: (String) -> Unit,
+    onRetry: () -> Unit,
     onSpeak: (String) -> Unit
 ) {
     val modes = listOf(
-        "Beginner", "Daily Life", "Restaurant", "Shopping",
-        "Travel", "University", "Workplace", "Technology", "Free Conversation"
+        "Beginner", "Daily Life", "Grammar Help", "Sentence Check",
+        "Restaurant", "Travel", "Workplace"
     )
     var selectedMode by remember { mutableStateOf("Daily Life") }
     var inputMessage by remember { mutableStateOf("") }
+    val isBusy = aiState is AiUiState.Loading || aiState is AiUiState.Streaming
 
     Column(
         modifier = Modifier
@@ -142,45 +162,74 @@ private fun AiMandarinTutorView(
             .padding(horizontal = 18.dp)
     ) {
         Spacer(modifier = Modifier.height(8.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .neoBrutalSurface(
-                        backgroundColor = BrutalYellow,
-                        borderColor = BrutalBlack,
-                        shadowColor = BrutalBlack,
-                        borderWidth = 2.5.dp,
-                        shadowOffset = 3.5.dp
+
+        // Tutor Header + New Conversation Action
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .neoBrutalSurface(
+                            backgroundColor = BrutalYellow,
+                            borderColor = BrutalBlack,
+                            shadowColor = BrutalBlack,
+                            borderWidth = 2.dp,
+                            shadowOffset = 3.dp
+                        )
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.img_tutor_avatar_1793854930329),
+                        contentDescription = "AI Mandarin Tutor avatar",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
                     )
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.img_tutor_avatar_1793854930329),
-                    contentDescription = "AI Mandarin Tutor avatar",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "AI MANDARIN TUTOR · 智学老师",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = "Multi-turn context · Grammar, Pinyin & Tones",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(
-                    text = "AI MANDARIN TUTOR · 智学老师",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                NeoBrutalBadge(
-                    text = "GEMINI 3.8 FLASH // MODE: $selectedMode",
-                    backgroundColor = BrutalYellow
-                )
+            NeoBrutalButton(
+                text = "+ NEW CHAT",
+                backgroundColor = BrutalYellow,
+                height = 38.dp,
+                onClick = { onStartNewConversation(selectedMode) },
+                modifier = Modifier.testTag("new_tutor_chat_button")
+            )
+        }
+
+        // Multiple Conversation Session Switcher
+        if (conversations.size > 1) {
+            Spacer(modifier = Modifier.height(8.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(conversations, key = { it.id }) { thread ->
+                    NeoBrutalChip(
+                        text = thread.title,
+                        selected = thread.id == activeConversationId,
+                        selectedColor = BrutalBlack,
+                        onClick = { onSelectConversation(thread.id) }
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            modes.forEach { mode ->
+        Spacer(modifier = Modifier.height(8.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(modes) { mode ->
                 NeoBrutalChip(
                     text = mode,
                     selected = selectedMode == mode,
@@ -190,7 +239,27 @@ private fun AiMandarinTutorView(
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Quick 1-Tap Teacher Prompts
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            val quickPrompts = listOf(
+                "Correct: 我是好学生吗 -> Is '我是忙' right?",
+                "Explain 了 (le) vs 过 (guò) with examples",
+                "Give me 3 HSK 1 practice questions",
+                "How do I order hot tea in Chinese?"
+            )
+            items(quickPrompts) { qp ->
+                NeoBrutalBadge(
+                    text = "PROMPT: $qp",
+                    backgroundColor = BrutalCream,
+                    textColor = BrutalBlack,
+                    modifier = Modifier.padding(vertical = 2.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         LazyColumn(
             modifier = Modifier
@@ -204,11 +273,11 @@ private fun AiMandarinTutorView(
                     contentAlignment = if (msg.isUser) Alignment.CenterEnd else Alignment.CenterStart
                 ) {
                     NeoBrutalCard(
-                        modifier = Modifier.fillMaxWidth(0.92f),
-                        backgroundColor = if (msg.isUser) BrutalYellow else MaterialTheme.colorScheme.surface,
-                        accentHeaderColor = if (msg.isUser) BrutalOrange else BrutalCobalt,
-                        headerTitle = if (msg.isUser) "YOU // ${msg.modeTag}" else "AI TUTOR // ${msg.modeTag}",
-                        shadowOffset = 4.dp
+                        modifier = Modifier.fillMaxWidth(0.94f),
+                        backgroundColor = if (msg.isUser) BrutalCream else MaterialTheme.colorScheme.surface,
+                        accentHeaderColor = if (msg.isUser) BrutalOrange else BrutalBlack,
+                        headerTitle = if (msg.isUser) "YOU // ${msg.modeTag}" else "MANDARIN TEACHER // ${msg.modeTag}",
+                        shadowOffset = 3.5.dp
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -224,7 +293,7 @@ private fun AiMandarinTutorView(
                             if (!msg.isUser) {
                                 Spacer(modifier = Modifier.width(8.dp))
                                 NeoBrutalIconButton(
-                                    onClick = { onSpeak(msg.text.take(60)) },
+                                    onClick = { onSpeak(msg.text.take(80)) },
                                     backgroundColor = BrutalYellow,
                                     size = 38.dp
                                 ) {
@@ -244,9 +313,9 @@ private fun AiMandarinTutorView(
             if (aiState is AiUiState.Loading || aiState is AiUiState.Streaming) {
                 item {
                     NeoBrutalCard(
-                        modifier = Modifier.fillMaxWidth(0.92f),
-                        accentHeaderColor = BrutalMint,
-                        headerTitle = "STREAMING MANDARIN RESPONSE..."
+                        modifier = Modifier.fillMaxWidth(0.94f),
+                        accentHeaderColor = BrutalBlack,
+                        headerTitle = "TEACHER IS RESPONDING..."
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(
@@ -256,7 +325,7 @@ private fun AiMandarinTutorView(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "TUTOR IS COMPOSING...",
+                                text = "PREPARING STEP-BY-STEP EXPLANATION...",
                                 style = MaterialTheme.typography.labelLarge,
                                 color = BrutalOrange
                             )
@@ -278,12 +347,24 @@ private fun AiMandarinTutorView(
                     NeoBrutalCard(
                         modifier = Modifier.fillMaxWidth(),
                         accentHeaderColor = BrutalOrange,
-                        headerTitle = "TUTOR NOTICE"
+                        headerTitle = "CONNECTION ERROR // RETRY AVAILABLE"
                     ) {
                         Text(
                             text = aiState.message,
                             color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        NeoBrutalButton(
+                            text = "RETRY LAST MESSAGE",
+                            icon = Icons.Default.Refresh,
+                            backgroundColor = BrutalYellow,
+                            contentColor = BrutalBlack,
+                            height = 44.dp,
+                            onClick = onRetry,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("tutor_retry_button")
                         )
                     }
                 }
@@ -300,8 +381,8 @@ private fun AiMandarinTutorView(
             NeoBrutalTextField(
                 value = inputMessage,
                 onValueChange = { inputMessage = it },
-                label = "Message AI Tutor",
-                placeholder = "Ask in Chinese or English...",
+                label = "Ask Mandarin Teacher",
+                placeholder = "Ask about grammar, vocabulary, or write in Chinese...",
                 modifier = Modifier
                     .weight(1f)
                     .testTag("tutor_chat_input")
@@ -309,20 +390,20 @@ private fun AiMandarinTutorView(
             Spacer(modifier = Modifier.width(8.dp))
             NeoBrutalIconButton(
                 onClick = {
-                    if (inputMessage.isNotBlank()) {
+                    if (inputMessage.isNotBlank() && !isBusy) {
                         onSendMessage(inputMessage, selectedMode)
                         inputMessage = ""
                     }
                 },
-                backgroundColor = BrutalOrange,
-                contentColor = Color.White,
+                backgroundColor = if (isBusy) BrutalCream else BrutalOrange,
+                contentColor = if (isBusy) BrutalBlack else Color.White,
                 size = 54.dp,
                 modifier = Modifier.testTag("tutor_send_button")
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Send,
                     contentDescription = "Send to AI Tutor",
-                    tint = Color.White
+                    tint = if (isBusy) BrutalBlack else Color.White
                 )
             }
         }
@@ -350,12 +431,12 @@ private fun ExplainSentenceView(
         item {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "EXPLAIN THIS SENTENCE // AI PARSER",
+                text = "SENTENCE PARSER // GRAMMAR & PINYIN",
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = "Paste any Mandarin sentence to extract Simplified characters, Pinyin, word-by-word tokens, grammar structure, and related examples.",
+                text = "Enter any Chinese sentence to see its Pinyin, English translation, word-by-word breakdown, and grammar structure.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -378,6 +459,7 @@ private fun ExplainSentenceView(
                     icon = Icons.Default.AutoAwesome,
                     backgroundColor = BrutalOrange,
                     contentColor = Color.White,
+                    enabled = aiState !is AiUiState.Loading,
                     modifier = Modifier
                         .weight(1f)
                         .testTag("explain_sentence_button"),
@@ -385,7 +467,7 @@ private fun ExplainSentenceView(
                 )
                 NeoBrutalIconButton(
                     onClick = { onSpeak(sentenceInput) },
-                    backgroundColor = BrutalYellow,
+                    backgroundColor = BrutalWhite,
                     size = 52.dp
                 ) {
                     Icon(
@@ -401,14 +483,14 @@ private fun ExplainSentenceView(
             item {
                 NeoBrutalCard(
                     modifier = Modifier.fillMaxWidth(),
-                    accentHeaderColor = BrutalYellow,
+                    accentHeaderColor = BrutalBlack,
                     headerTitle = "PARSING SYNTAX TREE..."
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(22.dp),
                             strokeWidth = 2.5.dp,
-                            color = BrutalBlack
+                            color = BrutalOrange
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
@@ -425,11 +507,19 @@ private fun ExplainSentenceView(
                 NeoBrutalCard(
                     modifier = Modifier.fillMaxWidth(),
                     accentHeaderColor = BrutalOrange,
-                    headerTitle = "PARSER NOTICE"
+                    headerTitle = "PARSER ERROR"
                 ) {
                     Text(
                         text = aiState.message,
                         color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    NeoBrutalButton(
+                        text = "RETRY ANALYSIS",
+                        icon = Icons.Default.Refresh,
+                        backgroundColor = BrutalYellow,
+                        height = 42.dp,
+                        onClick = { onExplain(sentenceInput) }
                     )
                 }
             }
@@ -439,7 +529,7 @@ private fun ExplainSentenceView(
             item {
                 NeoBrutalCard(
                     modifier = Modifier.fillMaxWidth(),
-                    accentHeaderColor = BrutalCobalt,
+                    accentHeaderColor = BrutalBlack,
                     headerTitle = "GRAMMATICAL DECONSTRUCTION REPORT",
                     headerRightText = "VERIFIED"
                 ) {
@@ -448,7 +538,7 @@ private fun ExplainSentenceView(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        NeoBrutalBadge(text = "01 // SIMPLIFIED & PINYIN", backgroundColor = BrutalYellow)
+                        NeoBrutalBadge(text = "01 // HANZI & PINYIN", backgroundColor = BrutalYellow)
                         NeoBrutalButton(
                             text = "SAVE TO NOTEBOOK",
                             icon = Icons.Default.BookmarkAdded,
@@ -470,7 +560,7 @@ private fun ExplainSentenceView(
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))
-                    NeoBrutalBadge(text = "02 // NATURAL TRANSLATION", backgroundColor = BrutalYellow)
+                    NeoBrutalBadge(text = "02 // ENGLISH TRANSLATION", backgroundColor = BrutalYellow)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = breakdown.englishTranslation,
@@ -487,7 +577,7 @@ private fun ExplainSentenceView(
                                 .fillMaxWidth()
                                 .padding(vertical = 3.dp)
                                 .neoBrutalSurface(
-                                    backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    backgroundColor = BrutalCream,
                                     borderColor = BrutalBlack,
                                     shadowColor = BrutalBlack,
                                     borderWidth = 2.dp,
@@ -499,7 +589,7 @@ private fun ExplainSentenceView(
                                 text = "▪ $w",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = BrutalBlack
                             )
                         }
                     }
@@ -625,7 +715,7 @@ private fun PersonalNotesView(
                     text = "+ NEW NOTE",
                     icon = Icons.Default.Add,
                     backgroundColor = BrutalYellow,
-                    height = 44.dp,
+                    height = 42.dp,
                     onClick = { showCreateNoteDialog = true },
                     modifier = Modifier.testTag("add_note_button")
                 )
@@ -647,7 +737,7 @@ private fun PersonalNotesView(
                     NeoBrutalChip(
                         text = folder,
                         selected = selectedFolder == folder,
-                        selectedColor = BrutalYellow,
+                        selectedColor = BrutalOrange,
                         onClick = { selectedFolder = folder }
                     )
                 }
@@ -658,11 +748,11 @@ private fun PersonalNotesView(
             item {
                 NeoBrutalCard(
                     modifier = Modifier.fillMaxWidth(),
-                    accentHeaderColor = BrutalYellow,
+                    accentHeaderColor = BrutalBlack,
                     headerTitle = "NOTEBOOK ARCHIVE EMPTY"
                 ) {
                     Text(
-                        text = "Tap '+ NEW NOTE' or save a breakdown from 'Explain Sentence' to build your personal Mandarin reference.",
+                        text = "Tap '+ NEW NOTE' or save a breakdown from 'Sentence Parser' to build your personal Mandarin reference.",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -672,7 +762,7 @@ private fun PersonalNotesView(
             items(filteredNotes, key = { it.id }) { note ->
                 NeoBrutalCard(
                     modifier = Modifier.fillMaxWidth(),
-                    accentHeaderColor = BrutalMint,
+                    accentHeaderColor = BrutalBlack,
                     headerTitle = "FOLDER // ${note.folder.uppercase()}",
                     headerRightText = "CLOUD SYNCED"
                 ) {
@@ -697,7 +787,7 @@ private fun PersonalNotesView(
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             NeoBrutalIconButton(
                                 onClick = { onSpeak(note.chineseSentence) },
-                                backgroundColor = BrutalYellow,
+                                backgroundColor = BrutalWhite,
                                 size = 40.dp
                             ) {
                                 Icon(
@@ -743,7 +833,7 @@ private fun PersonalNotesView(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .neoBrutalSurface(
-                                    backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    backgroundColor = BrutalCream,
                                     borderColor = BrutalBlack,
                                     shadowColor = BrutalBlack,
                                     borderWidth = 2.dp,
@@ -754,7 +844,7 @@ private fun PersonalNotesView(
                             Text(
                                 text = note.grammarNotes,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = BrutalBlack
                             )
                         }
                     }

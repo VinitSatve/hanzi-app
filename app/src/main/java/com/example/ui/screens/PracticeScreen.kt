@@ -133,6 +133,7 @@ fun PracticeScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SrsFlashcardsView(
     isTraditional: Boolean,
@@ -141,10 +142,21 @@ private fun SrsFlashcardsView(
     onReviewCard: (FlashcardItem, Int) -> Unit,
     onToggleFavorite: (FlashcardItem) -> Unit
 ) {
-    var currentIndex by remember { mutableIntStateOf(0) }
-    var isFlipped by remember { mutableStateOf(false) }
+    var statusFilter by remember { mutableStateOf("ALL") }
+    var currentIndex by remember(statusFilter) { mutableIntStateOf(0) }
+    var isFlipped by remember(statusFilter) { mutableStateOf(false) }
 
-    if (flashcards.isEmpty()) {
+    val filteredDeck = flashcards.filter { c ->
+        when (statusFilter) {
+            "NEW" -> c.status == "NEW"
+            "LEARNING" -> c.status == "LEARNING"
+            "PRACTICING" -> c.status == "PRACTICING" || c.status == "FAMILIAR"
+            "MASTERED" -> c.status == "MASTERED"
+            else -> true
+        }
+    }.ifEmpty { flashcards }
+
+    if (filteredDeck.isEmpty()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -152,7 +164,7 @@ private fun SrsFlashcardsView(
             contentAlignment = Alignment.Center
         ) {
             NeoBrutalCard(
-                accentHeaderColor = BrutalYellow,
+                accentHeaderColor = BrutalBlack,
                 headerTitle = "SM-2 DECK EMPTY"
             ) {
                 Text(
@@ -166,8 +178,8 @@ private fun SrsFlashcardsView(
         return
     }
 
-    val safeIndex = currentIndex.coerceIn(0, flashcards.lastIndex)
-    val card = flashcards[safeIndex]
+    val safeIndex = currentIndex.coerceIn(0, filteredDeck.lastIndex)
+    val card = filteredDeck[safeIndex]
 
     LazyColumn(
         modifier = Modifier
@@ -189,7 +201,7 @@ private fun SrsFlashcardsView(
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        text = "CARD ${safeIndex + 1} OF ${flashcards.size} · ${card.status} · INTERVAL ${card.intervalDays}D",
+                        text = "CARD ${safeIndex + 1} OF ${filteredDeck.size} · STATUS: ${card.status} · INTERVAL ${card.intervalDays}D",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -202,6 +214,30 @@ private fun SrsFlashcardsView(
                         imageVector = if (card.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
                         contentDescription = "Favorite card",
                         tint = BrutalBlack
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val newCnt = flashcards.count { it.status == "NEW" }
+                val learnCnt = flashcards.count { it.status == "LEARNING" }
+                val pracCnt = flashcards.count { it.status == "PRACTICING" || it.status == "FAMILIAR" }
+                val mastCnt = flashcards.count { it.status == "MASTERED" }
+                listOf(
+                    "ALL" to "ALL (${flashcards.size})",
+                    "NEW" to "NEW ($newCnt)",
+                    "LEARNING" to "LEARNING ($learnCnt)",
+                    "PRACTICING" to "PRACTICING ($pracCnt)",
+                    "MASTERED" to "MASTERED ($mastCnt)"
+                ).forEach { (key, label) ->
+                    NeoBrutalChip(
+                        text = label,
+                        selected = statusFilter == key,
+                        selectedColor = BrutalOrange,
+                        onClick = { statusFilter = key }
                     )
                 }
             }
@@ -347,7 +383,7 @@ private fun SrsFlashcardsView(
                     onClick = {
                         onReviewCard(card, 0)
                         isFlipped = false
-                        currentIndex = (safeIndex + 1) % flashcards.size
+                        currentIndex = (safeIndex + 1) % filteredDeck.size
                     }
                 )
                 SrsGradeButton(
@@ -359,7 +395,7 @@ private fun SrsFlashcardsView(
                     onClick = {
                         onReviewCard(card, 1)
                         isFlipped = false
-                        currentIndex = (safeIndex + 1) % flashcards.size
+                        currentIndex = (safeIndex + 1) % filteredDeck.size
                     }
                 )
                 SrsGradeButton(
@@ -371,7 +407,7 @@ private fun SrsFlashcardsView(
                     onClick = {
                         onReviewCard(card, 2)
                         isFlipped = false
-                        currentIndex = (safeIndex + 1) % flashcards.size
+                        currentIndex = (safeIndex + 1) % filteredDeck.size
                     }
                 )
                 SrsGradeButton(
@@ -383,7 +419,7 @@ private fun SrsFlashcardsView(
                     onClick = {
                         onReviewCard(card, 3)
                         isFlipped = false
-                        currentIndex = (safeIndex + 1) % flashcards.size
+                        currentIndex = (safeIndex + 1) % filteredDeck.size
                     }
                 )
             }

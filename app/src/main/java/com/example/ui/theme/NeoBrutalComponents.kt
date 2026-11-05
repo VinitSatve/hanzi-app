@@ -363,7 +363,8 @@ fun NeoBrutalChip(
 }
 
 /**
- * Bold Segmented Tab Bar with chunky 3dp bordered tab blocks and hard shadows
+ * Minimal, intentional Neo-Brutalist Segmented Tab Bar inspired by Teenage Engineering & Nothing OS:
+ * Uses crisp black-on-white geometry with a single Signal Orange (#FF5416) LED indicator on the active tab.
  */
 @Composable
 fun NeoBrutalTabRow(
@@ -373,12 +374,6 @@ fun NeoBrutalTabRow(
     modifier: Modifier = Modifier,
     tagPrefix: String = "brutal_tab"
 ) {
-    val tabColors = listOf(
-        HanziTheme.colors.electricYellow,
-        HanziTheme.colors.vividOrange,
-        HanziTheme.colors.cobaltBlue,
-        HanziTheme.colors.acidMint
-    )
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -387,27 +382,23 @@ fun NeoBrutalTabRow(
         LazyRow(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = 18.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             itemsIndexed(tabs) { idx, title ->
                 val isSelected = selectedIndex == idx
-                val activeBg = tabColors[idx % tabColors.size]
-                val activeFg = if (activeBg == HanziTheme.colors.cobaltBlue || activeBg == HanziTheme.colors.vividOrange) {
-                    Color.White
-                } else {
-                    HanziTheme.colors.pureBlack
-                }
+                val activeBg = HanziTheme.colors.pureBlack
+                val activeFg = HanziTheme.colors.pureWhite
 
                 Box(
                     modifier = Modifier
-                        .height(46.dp)
+                        .height(44.dp)
                         .neoBrutalSurface(
                             backgroundColor = if (isSelected) activeBg else HanziTheme.colors.surface,
                             borderColor = HanziTheme.colors.borderBlack,
                             shadowColor = HanziTheme.shadows.shadowColor,
-                            borderWidth = HanziTheme.borders.defaultWidth,
-                            shadowOffset = if (isSelected) HanziTheme.shadows.defaultOffset else HanziTheme.shadows.badgeOffset,
+                            borderWidth = HanziTheme.borders.thinWidth,
+                            shadowOffset = if (isSelected) 3.dp else 2.dp,
                             cornerRadius = HanziTheme.borders.cornerRadius
                         )
                         .clickable { onSelect(idx) }
@@ -415,14 +406,15 @@ fun NeoBrutalTabRow(
                     contentAlignment = Alignment.Center
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (isSelected) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .background(activeFg)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                        }
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .background(
+                                    if (isSelected) HanziTheme.colors.vividOrange
+                                    else HanziTheme.colors.borderBlack.copy(alpha = 0.2f)
+                                )
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = title.uppercase(),
                             style = HanziTheme.typography.labelLarge,
@@ -436,7 +428,7 @@ fun NeoBrutalTabRow(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(HanziTheme.borders.defaultWidth)
+                .height(HanziTheme.borders.thinWidth)
                 .background(HanziTheme.colors.borderBlack)
         )
     }

@@ -1,20 +1,24 @@
 package com.example.util
 
 import android.content.Context
+import android.content.Intent
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Build
+import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import java.util.Locale
-import kotlin.math.abs
 import kotlin.math.log10
 import kotlin.math.sqrt
 
@@ -22,6 +26,7 @@ class MandarinSpeechManager(private val context: Context) {
 
     private var tts: TextToSpeech? = null
     private var isTtsReady = false
+    private var speechRecognizer: SpeechRecognizer? = null
 
     init {
         try {
@@ -38,6 +43,7 @@ class MandarinSpeechManager(private val context: Context) {
     }
 
     fun speak(text: String, slow: Boolean = false) {
+        if (text.isBlank()) return
         triggerHaptic()
         try {
             if (isTtsReady) {
@@ -64,6 +70,58 @@ class MandarinSpeechManager(private val context: Context) {
                 }
             }
         } catch (_: Exception) {
+        }
+    }
+
+    /**
+     * Uses Android SpeechRecognizer (when available on device) to transcribe spoken Mandarin (zh-CN).
+     */
+    fun listenForMandarinSpeech(
+        onResult: (transcript: String) -> Unit,
+        onError: (reason: String) -> Unit
+    ) {
+        try {
+            if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+                onError("On-device SpeechRecognizer service is unavailable; use Record Voice (Acoustic Mic) or type your Mandarin transcript below.")
+                return
+            }
+            speechRecognizer?.destroy()
+            val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
+            speechRecognizer = recognizer
+            recognizer.setRecognitionListener(object : RecognitionListener {
+                override fun onReadyForSpeech(params: Bundle?) {}
+                override fun onBeginningOfSpeech() {}
+                override fun onRmsChanged(rmsdB: Float) {}
+                override fun onBufferReceived(buffer: ByteArray?) {}
+                override fun onEndOfSpeech() {}
+                override fun onError(error: Int) {
+                    onError("Speech recognition finished (code $error). You can also record acoustic pitch directly.")
+                }
+                override fun onResults(results: Bundle?) {
+                    val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    val best = matches?.firstOrNull().orEmpty()
+                    if (best.isNotBlank()) {
+                        onResult(best)
+                    } else {
+                        onError("No clear Mandarin speech detected. Please speak closer to the microphone.")
+                    }
+                }
+                override fun onPartialResults(partialResults: Bundle?) {
+                    val partial = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
+                    if (!partial.isNullOrBlank()) {
+                        onResult(partial)
+                    }
+                }
+                override fun onEvent(eventType: Int, params: Bundle?) {}
+            })
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-CN")
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            }
+            recognizer.startListening(intent)
+        } catch (e: Exception) {
+            onError("Speech recognizer error: ${e.message ?: "unavailable"}")
         }
     }
 
@@ -100,8 +158,7 @@ class MandarinSpeechManager(private val context: Context) {
                 audioRecord.startRecording()
                 val shortBuffer = ShortArray(1024)
                 val startMs = System.currentTimeMillis()
-                // Record up to 3.2 seconds or until coroutine is cancelled
-                while (isActive && System.currentTimeMillis() - startMs < 3200L) {
+                while (isActive && System.currentTimeMillis() - startMs < 3000L) {
                     val readCount = audioRecord.read(shortBuffer, 0, shortBuffer.size)
                     if (readCount > 0) {
                         var sumSquares = 0.0
@@ -117,7 +174,6 @@ class MandarinSpeechManager(private val context: Context) {
                         }
                         val rms = sqrt(sumSquares / readCount)
                         val normAmp = (log10(1.0 + rms) / log10(32768.0)).toFloat().coerceIn(0.08f, 0.96f)
-                        // Estimate normalized pitch height from zero-crossing rate in voiced frames
                         val zcrHz = (zeroCrossings * sampleRate) / (2.0 * readCount)
                         val normPitch = ((zcrHz - 85.0) / 340.0).toFloat().coerceIn(0.18f, 0.92f)
 
@@ -143,6 +199,7 @@ class MandarinSpeechManager(private val context: Context) {
 
     fun shutdown() {
         try {
+            speechRecognizer?.destroy()
             tts?.stop()
             tts?.shutdown()
         } catch (_: Exception) {

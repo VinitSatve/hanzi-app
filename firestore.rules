@@ -64,7 +64,7 @@ service cloud.firestore {
              data.exampleEnglish is string && data.exampleEnglish.size() <= 300 &&
              data.hskLevel is int && data.hskLevel >= 1 && data.hskLevel <= 6 &&
              data.category is string && data.category.size() >= 1 && data.category.size() <= 60 &&
-             data.status is string && (data.status == 'LEARNING' || data.status == 'FAMILIAR' || data.status == 'MASTERED') &&
+             data.status is string && (data.status == 'NEW' || data.status == 'LEARNING' || data.status == 'PRACTICING' || data.status == 'FAMILIAR' || data.status == 'MASTERED') &&
              data.intervalDays is int && data.intervalDays >= 0 && data.intervalDays <= 3650 &&
              data.easeFactor is int && data.easeFactor >= 130 && data.easeFactor <= 400 &&
              data.repetitions is int && data.repetitions >= 0 && data.repetitions <= 10000 &&

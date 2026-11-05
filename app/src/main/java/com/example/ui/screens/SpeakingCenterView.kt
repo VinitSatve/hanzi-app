@@ -5,7 +5,6 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.SlowMotionVideo
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
@@ -53,6 +53,7 @@ import com.example.data.curriculum.CurriculumExtras
 import com.example.data.curriculum.SpeakingPrompt
 import com.example.ui.theme.BrutalBlack
 import com.example.ui.theme.BrutalCobalt
+import com.example.ui.theme.BrutalCream
 import com.example.ui.theme.BrutalMint
 import com.example.ui.theme.BrutalOrange
 import com.example.ui.theme.BrutalWhite
@@ -86,10 +87,11 @@ fun SpeakingCenterView(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var selectedPrompt by remember { mutableStateOf(CurriculumExtras.speakingPrompts.first()) }
-    var spokenTranscriptInput by remember { mutableStateOf(selectedPrompt.simplified) }
+    var spokenTranscriptInput by remember(selectedPrompt.id) { mutableStateOf("") }
     var isRecordingMic by remember { mutableStateOf(false) }
-    var liveWaveform by remember { mutableStateOf<List<Float>>(emptyList()) }
-    var livePitch by remember { mutableStateOf<List<Float>>(emptyList()) }
+    var liveWaveform by remember(selectedPrompt.id) { mutableStateOf<List<Float>>(emptyList()) }
+    var livePitch by remember(selectedPrompt.id) { mutableStateOf<List<Float>>(emptyList()) }
+    var sttStatusMessage by remember(selectedPrompt.id) { mutableStateOf<String?>(null) }
     var recordingJob by remember { mutableStateOf<Job?>(null) }
 
     val micPermissionLauncher = rememberLauncherForActivityResult(
@@ -97,16 +99,26 @@ fun SpeakingCenterView(
     ) { granted ->
         if (granted) {
             isRecordingMic = true
+            sttStatusMessage = "Recording microphone audio (speak '${selectedPrompt.simplified}' now)..."
             recordingJob = scope.launch {
                 val (wave, pitch) = speechManager.recordAcousticProfile { w, p ->
                     liveWaveform = w
                     livePitch = p
                 }
                 isRecordingMic = false
-                onAnalyzeAttempt(selectedPrompt, spokenTranscriptInput, wave, pitch)
+                if (wave.isNotEmpty()) {
+                    sttStatusMessage = "Captured ${wave.size} acoustic frames from microphone."
+                    onAnalyzeAttempt(selectedPrompt, spokenTranscriptInput, wave, pitch)
+                } else {
+                    sttStatusMessage = "No microphone signal detected. Check emulator/device mic or enter your spoken transcript below."
+                }
             }
+        } else {
+            sttStatusMessage = "Microphone permission was denied. Grant RECORD_AUDIO permission to capture live voice pitch contours."
         }
     }
+
+    val hasValidAttemptInput = liveWaveform.size >= 3 || spokenTranscriptInput.isNotBlank()
 
     LazyColumn(
         modifier = Modifier
@@ -117,12 +129,12 @@ fun SpeakingCenterView(
         item {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "SPEAKING CENTER // PITCH & PHONEME LAB",
+                text = "SPEAKING & PRONUNCIATION LAB",
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = "Compare your acoustic F0 pitch curve and waveform against native Mandarin tone contours with syllable-level scoring.",
+                text = "Listen to native Mandarin audio at 1.0x or 0.6x speed, then record your voice or use speech recognition for honest tone & phoneme diagnostics.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -135,11 +147,8 @@ fun SpeakingCenterView(
                     NeoBrutalChip(
                         text = prompt.level,
                         selected = selectedPrompt.id == prompt.id,
-                        selectedColor = BrutalYellow,
-                        onClick = {
-                            selectedPrompt = prompt
-                            spokenTranscriptInput = if (isTraditional) prompt.traditional else prompt.simplified
-                        }
+                        selectedColor = BrutalOrange,
+                        onClick = { selectedPrompt = prompt }
                     )
                 }
             }
@@ -149,7 +158,7 @@ fun SpeakingCenterView(
         item {
             NeoBrutalCard(
                 modifier = Modifier.fillMaxWidth(),
-                accentHeaderColor = BrutalCobalt,
+                accentHeaderColor = BrutalBlack,
                 headerTitle = "TARGET UTTERANCE // ${selectedPrompt.category}",
                 headerRightText = selectedPrompt.level
             ) {
@@ -175,8 +184,8 @@ fun SpeakingCenterView(
                     NeoBrutalButton(
                         text = "NATIVE 1.0X",
                         icon = Icons.AutoMirrored.Filled.VolumeUp,
-                        backgroundColor = BrutalYellow,
-                        contentColor = BrutalBlack,
+                        backgroundColor = BrutalOrange,
+                        contentColor = Color.White,
                         modifier = Modifier
                             .weight(1f)
                             .testTag("speaking_play_normal_button"),
@@ -199,7 +208,7 @@ fun SpeakingCenterView(
                     modifier = Modifier
                         .fillMaxWidth()
                         .neoBrutalSurface(
-                            backgroundColor = BrutalYellow.copy(alpha = 0.25f),
+                            backgroundColor = BrutalCream,
                             borderColor = BrutalBlack,
                             shadowColor = BrutalBlack,
                             borderWidth = 2.dp,
@@ -208,10 +217,10 @@ fun SpeakingCenterView(
                         .padding(10.dp)
                 ) {
                     Text(
-                        text = "ARTICULATION TIP // ${selectedPrompt.phonemeTip}",
+                        text = "PRONUNCIATION TIP // ${selectedPrompt.phonemeTip}",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = BrutalBlack
                     )
                 }
             }
@@ -226,9 +235,9 @@ fun SpeakingCenterView(
 
             NeoBrutalCard(
                 modifier = Modifier.fillMaxWidth(),
-                accentHeaderColor = BrutalYellow,
+                accentHeaderColor = BrutalBlack,
                 headerTitle = "ACOUSTIC PITCH CONTOUR & WAVEFORM",
-                headerRightText = "F0 OSCILLOSCOPE"
+                headerRightText = if (userContour.isNotEmpty()) "LIVE MIC CAPTURED" else "REFERENCE READY"
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -241,17 +250,16 @@ fun SpeakingCenterView(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Brutalist Pitch Contour Oscilloscope (Chao Tone Levels 5 -> 1)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(155.dp)
+                        .height(145.dp)
                         .neoBrutalSurface(
                             backgroundColor = BrutalWhite,
                             borderColor = BrutalBlack,
                             shadowColor = BrutalBlack,
-                            borderWidth = 2.5.dp,
-                            shadowOffset = 3.5.dp
+                            borderWidth = 2.dp,
+                            shadowOffset = 3.dp
                         )
                         .padding(12.dp)
                 ) {
@@ -259,10 +267,9 @@ fun SpeakingCenterView(
                         val w = size.width
                         val h = size.height
 
-                        // Architectural pitch register grid lines (High 5, Mid 3, Low 1)
                         listOf(0.15f, 0.50f, 0.85f).forEach { yFrac ->
                             drawLine(
-                                color = BrutalBlack.copy(alpha = 0.25f),
+                                color = BrutalBlack.copy(alpha = 0.2f),
                                 start = Offset(0f, h * yFrac),
                                 end = Offset(w, h * yFrac),
                                 strokeWidth = 1.5.dp.toPx(),
@@ -270,7 +277,6 @@ fun SpeakingCenterView(
                             )
                         }
 
-                        // Native Target Pitch Curve (BrutalCobalt)
                         if (targetContour.size >= 2) {
                             val targetPath = Path()
                             targetContour.forEachIndexed { idx, pitchVal ->
@@ -285,7 +291,6 @@ fun SpeakingCenterView(
                             )
                         }
 
-                        // Learner Recorded Pitch Curve (BrutalOrange)
                         if (userContour.size >= 2) {
                             val userPath = Path()
                             userContour.forEachIndexed { idx, pitchVal ->
@@ -302,9 +307,9 @@ fun SpeakingCenterView(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // Syllable-by-syllable tone blocks underneath the pitch curve
+                // Syllable tone blocks
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -349,77 +354,67 @@ fun SpeakingCenterView(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Chunky Neo-Brutalist Waveform Bars
-                Text(
-                    text = "VOICE AMPLITUDE ENVELOPE",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(58.dp)
-                        .neoBrutalSurface(
-                            backgroundColor = BrutalWhite,
-                            borderColor = BrutalBlack,
-                            shadowColor = BrutalBlack,
-                            borderWidth = 2.dp,
-                            shadowOffset = 3.dp
-                        )
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                ) {
-                    val barsToRender = if (userWave.isNotEmpty()) userWave else List(20) { 0.22f }
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val count = barsToRender.size
-                        val slot = size.width / count
-                        val barWidth = (slot * 0.62f).coerceAtLeast(5f)
-                        barsToRender.forEachIndexed { i, amp ->
-                            val barHeight = (size.height * amp.coerceIn(0.15f, 0.96f))
-                            val top = (size.height - barHeight) / 2f
-                            val left = i * slot + (slot - barWidth) / 2f
-                            drawRect(
-                                color = if (userWave.isNotEmpty()) BrutalOrange else BrutalCobalt.copy(alpha = 0.4f),
-                                topLeft = Offset(left, top),
-                                size = Size(barWidth, barHeight)
+                if (userWave.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "CAPTURED VOICE AMPLITUDE ENVELOPE (${userWave.size} FRAMES)",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                            .neoBrutalSurface(
+                                backgroundColor = BrutalWhite,
+                                borderColor = BrutalBlack,
+                                shadowColor = BrutalBlack,
+                                borderWidth = 2.dp,
+                                shadowOffset = 2.5.dp
                             )
-                            drawRect(
-                                color = BrutalBlack,
-                                topLeft = Offset(left, top),
-                                size = Size(barWidth, barHeight),
-                                style = Stroke(width = 1.5.dp.toPx())
-                            )
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val count = userWave.size
+                            val slot = size.width / count
+                            val barWidth = (slot * 0.62f).coerceAtLeast(5f)
+                            userWave.forEachIndexed { i, amp ->
+                                val barHeight = (size.height * amp.coerceIn(0.15f, 0.96f))
+                                val top = (size.height - barHeight) / 2f
+                                val left = i * slot + (slot - barWidth) / 2f
+                                drawRect(
+                                    color = BrutalOrange,
+                                    topLeft = Offset(left, top),
+                                    size = Size(barWidth, barHeight)
+                                )
+                                drawRect(
+                                    color = BrutalBlack,
+                                    topLeft = Offset(left, top),
+                                    size = Size(barWidth, barHeight),
+                                    style = Stroke(width = 1.5.dp.toPx())
+                                )
+                            }
                         }
                     }
                 }
             }
         }
 
-        // Recording & Speech Analysis Controls
+        // Honest Recording & Speech Recognition Controls
         item {
             NeoBrutalCard(
                 modifier = Modifier.fillMaxWidth(),
-                accentHeaderColor = BrutalOrange,
-                headerTitle = "RECORD & ANALYZE PRONUNCIATION",
-                headerRightText = "AI + DSP"
+                accentHeaderColor = BrutalBlack,
+                headerTitle = "RECORD VOICE OR SPEECH-TO-TEXT",
+                headerRightText = if (hasValidAttemptInput) "READY TO SCORE" else "INPUT REQUIRED"
             ) {
-                NeoBrutalTextField(
-                    value = spokenTranscriptInput,
-                    onValueChange = { spokenTranscriptInput = it },
-                    label = "Spoken Mandarin / Pinyin Attempt",
-                    placeholder = "Speak or type Mandarin phrase...",
-                    modifier = Modifier.testTag("speaking_transcript_input")
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     NeoBrutalButton(
-                        text = if (isRecordingMic) "STOP & ANALYZE" else "RECORD VOICE",
+                        text = if (isRecordingMic) "STOP MIC" else "RECORD VOICE",
                         icon = if (isRecordingMic) Icons.Default.Stop else Icons.Default.Mic,
                         backgroundColor = if (isRecordingMic) BrutalYellow else BrutalOrange,
                         contentColor = if (isRecordingMic) BrutalBlack else Color.White,
@@ -430,7 +425,9 @@ fun SpeakingCenterView(
                             if (isRecordingMic) {
                                 recordingJob?.cancel()
                                 isRecordingMic = false
-                                onAnalyzeAttempt(selectedPrompt, spokenTranscriptInput, liveWaveform, livePitch)
+                                if (liveWaveform.isNotEmpty()) {
+                                    onAnalyzeAttempt(selectedPrompt, spokenTranscriptInput, liveWaveform, livePitch)
+                                }
                             } else {
                                 val hasPerm = ContextCompat.checkSelfPermission(
                                     context,
@@ -438,13 +435,17 @@ fun SpeakingCenterView(
                                 ) == PackageManager.PERMISSION_GRANTED
                                 if (hasPerm) {
                                     isRecordingMic = true
+                                    sttStatusMessage = "Recording microphone audio (speak '${selectedPrompt.simplified}' now)..."
                                     recordingJob = scope.launch {
                                         val (wave, pitch) = speechManager.recordAcousticProfile { w, p ->
                                             liveWaveform = w
                                             livePitch = p
                                         }
                                         isRecordingMic = false
-                                        onAnalyzeAttempt(selectedPrompt, spokenTranscriptInput, wave, pitch)
+                                        if (wave.isNotEmpty()) {
+                                            sttStatusMessage = "Captured ${wave.size} acoustic frames from microphone."
+                                            onAnalyzeAttempt(selectedPrompt, spokenTranscriptInput, wave, pitch)
+                                        }
                                     }
                                 } else {
                                     micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
@@ -454,30 +455,94 @@ fun SpeakingCenterView(
                     )
 
                     NeoBrutalButton(
-                        text = "EVALUATE TONES",
-                        icon = Icons.Default.AutoAwesome,
-                        backgroundColor = BrutalYellow,
+                        text = "SPEECH-TO-TEXT",
+                        icon = Icons.Default.RecordVoiceOver,
+                        backgroundColor = BrutalWhite,
                         contentColor = BrutalBlack,
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("analyze_pronunciation_button"),
+                        modifier = Modifier.weight(1f),
                         onClick = {
-                            onAnalyzeAttempt(selectedPrompt, spokenTranscriptInput, liveWaveform, livePitch)
+                            val hasPerm = ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.RECORD_AUDIO
+                            ) == PackageManager.PERMISSION_GRANTED
+                            if (hasPerm) {
+                                sttStatusMessage = "Listening for Mandarin speech (zh-CN)..."
+                                speechManager.listenForMandarinSpeech(
+                                    onResult = { recognized ->
+                                        spokenTranscriptInput = recognized
+                                        sttStatusMessage = "Recognized Mandarin: $recognized"
+                                    },
+                                    onError = { err ->
+                                        sttStatusMessage = err
+                                    }
+                                )
+                            } else {
+                                micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
                         }
+                    )
+                }
+
+                if (!sttStatusMessage.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = sttStatusMessage ?: "",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = BrutalOrange
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                NeoBrutalTextField(
+                    value = spokenTranscriptInput,
+                    onValueChange = { spokenTranscriptInput = it },
+                    label = "Recognized / Spoken Mandarin Transcript",
+                    placeholder = "Record voice above or type what you spoke (e.g. ${selectedPrompt.simplified})...",
+                    modifier = Modifier.testTag("speaking_transcript_input")
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+                NeoBrutalButton(
+                    text = if (hasValidAttemptInput) "EVALUATE PRONUNCIATION" else "RECORD OR TYPE TRANSCRIPT FIRST",
+                    icon = Icons.Default.AutoAwesome,
+                    backgroundColor = BrutalYellow,
+                    contentColor = BrutalBlack,
+                    enabled = hasValidAttemptInput,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("analyze_pronunciation_button"),
+                    onClick = {
+                        onAnalyzeAttempt(selectedPrompt, spokenTranscriptInput, liveWaveform, livePitch)
+                    }
+                )
+            }
+        }
+
+        if (aiState is AiUiState.Error) {
+            item {
+                NeoBrutalCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    accentHeaderColor = BrutalOrange,
+                    headerTitle = "PRONUNCIATION NOTICE"
+                ) {
+                    Text(
+                        text = aiState.message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
         }
 
         // Detailed Multi-Dimensional Pronunciation Feedback Report
-        if (evaluation != null) {
+        if (evaluation != null && evaluation.promptId == selectedPrompt.id) {
             item {
                 NeoBrutalCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("pronunciation_feedback_card"),
-                    accentHeaderColor = BrutalMint,
-                    headerTitle = if (evaluation.isAiEvaluated) "AI + ACOUSTIC PRONUNCIATION REPORT" else "ACOUSTIC PITCH CONTOUR REPORT",
+                    accentHeaderColor = BrutalBlack,
+                    headerTitle = if (evaluation.hasAcousticRecording) "ACOUSTIC MIC + AI REPORT" else "TRANSCRIPT + AI TONE REPORT",
                     headerRightText = "OVERALL ${evaluation.overallScore}%"
                 ) {
                     Row(
@@ -504,7 +569,7 @@ fun SpeakingCenterView(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     if (aiState is AiUiState.Loading) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(
@@ -621,7 +686,7 @@ private fun FeedbackDetailBlock(
                 borderColor = BrutalBlack,
                 shadowColor = BrutalBlack,
                 borderWidth = 2.dp,
-                shadowOffset = 3.dp
+                shadowOffset = 2.5.dp
             )
             .padding(12.dp)
     ) {
