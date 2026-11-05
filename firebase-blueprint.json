@@ -1,0 +1,295 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Stores the personal Mandarin learner profile, study goals, gamification points, badges, offline pack statuses, and HSK progress. Clients must write FieldValue.serverTimestamp() for createdAt and updatedAt.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The authenticated Firebase user UID owning this profile."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name of the learner."
+        },
+        "scriptMode": {
+          "type": "string",
+          "enum": ["SIMPLIFIED", "TRADITIONAL"],
+          "description": "Preferred Chinese character script."
+        },
+        "hskStandard": {
+          "type": "string",
+          "enum": ["HSK_2", "HSK_3"],
+          "description": "Selected HSK curriculum framework (Traditional HSK 2.0 vs HSK 3.0)."
+        },
+        "currentHskLevel": {
+          "type": "integer",
+          "description": "Current target HSK level (1 to 6)."
+        },
+        "dailyGoalMinutes": {
+          "type": "integer",
+          "description": "Daily study target in minutes."
+        },
+        "studyMinutesToday": {
+          "type": "integer",
+          "description": "Minutes studied today."
+        },
+        "totalStudyMinutes": {
+          "type": "integer",
+          "description": "Cumulative minutes studied."
+        },
+        "streakDays": {
+          "type": "integer",
+          "description": "Consecutive days of Mandarin study."
+        },
+        "points": {
+          "type": "integer",
+          "description": "Gamification points earned from lessons, flashcards, and pronunciation."
+        },
+        "completedLessonIds": {
+          "type": "array",
+          "description": "List of completed curriculum lesson IDs."
+        },
+        "masteredCharacterIds": {
+          "type": "array",
+          "description": "List of mastered Hanzi character IDs."
+        },
+        "unlockedBadgeIds": {
+          "type": "array",
+          "description": "List of unlocked milestone badge IDs."
+        },
+        "downloadedPackIds": {
+          "type": "array",
+          "description": "List of offline content pack IDs downloaded to device."
+        },
+        "listeningAccuracy": {
+          "type": "integer",
+          "description": "Average listening comprehension accuracy percentage (0-100)."
+        },
+        "readingAccuracy": {
+          "type": "integer",
+          "description": "Average reading comprehension accuracy percentage (0-100)."
+        },
+        "speakingAccuracy": {
+          "type": "integer",
+          "description": "Average speaking and tone contour accuracy percentage (0-100)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update server timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "scriptMode",
+        "hskStandard",
+        "currentHskLevel",
+        "dailyGoalMinutes",
+        "studyMinutesToday",
+        "totalStudyMinutes",
+        "streakDays",
+        "points",
+        "completedLessonIds",
+        "masteredCharacterIds",
+        "unlockedBadgeIds",
+        "downloadedPackIds",
+        "listeningAccuracy",
+        "readingAccuracy",
+        "speakingAccuracy",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "FlashcardItem": {
+      "title": "FlashcardItem",
+      "description": "A Mandarin vocabulary flashcard with SM-2 spaced repetition state. Clients must write FieldValue.serverTimestamp() for createdAt and updatedAt.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase UID."
+        },
+        "simplified": {
+          "type": "string",
+          "description": "Simplified Chinese characters."
+        },
+        "traditional": {
+          "type": "string",
+          "description": "Traditional Chinese characters."
+        },
+        "pinyin": {
+          "type": "string",
+          "description": "Pinyin with tone marks."
+        },
+        "english": {
+          "type": "string",
+          "description": "English definition."
+        },
+        "partOfSpeech": {
+          "type": "string",
+          "description": "Grammatical part of speech."
+        },
+        "exampleChinese": {
+          "type": "string",
+          "description": "Example sentence in Chinese."
+        },
+        "examplePinyin": {
+          "type": "string",
+          "description": "Pinyin for the example sentence."
+        },
+        "exampleEnglish": {
+          "type": "string",
+          "description": "English translation of the example sentence."
+        },
+        "hskLevel": {
+          "type": "integer",
+          "description": "HSK level (1-6)."
+        },
+        "category": {
+          "type": "string",
+          "description": "Thematic category."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["LEARNING", "FAMILIAR", "MASTERED"],
+          "description": "Current mastery status."
+        },
+        "intervalDays": {
+          "type": "integer",
+          "description": "Current spaced repetition interval in days."
+        },
+        "easeFactor": {
+          "type": "integer",
+          "description": "SM-2 ease factor scaled by 100 (e.g. 250 = 2.50)."
+        },
+        "repetitions": {
+          "type": "integer",
+          "description": "Consecutive successful repetitions."
+        },
+        "nextReviewEpochDay": {
+          "type": "integer",
+          "description": "Epoch day when card is next due for review."
+        },
+        "isFavorite": {
+          "type": "boolean",
+          "description": "Whether the user bookmarked this vocabulary item."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update server timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "simplified",
+        "traditional",
+        "pinyin",
+        "english",
+        "partOfSpeech",
+        "exampleChinese",
+        "examplePinyin",
+        "exampleEnglish",
+        "hskLevel",
+        "category",
+        "status",
+        "intervalDays",
+        "easeFactor",
+        "repetitions",
+        "nextReviewEpochDay",
+        "isFavorite",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PersonalNote": {
+      "title": "PersonalNote",
+      "description": "A personal Chinese notebook entry with sentence, Pinyin, translation, and grammar breakdown. Clients must write FieldValue.serverTimestamp() for createdAt and updatedAt.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase UID."
+        },
+        "title": {
+          "type": "string",
+          "description": "Note title or topic."
+        },
+        "chineseSentence": {
+          "type": "string",
+          "description": "Chinese sentence or phrase."
+        },
+        "pinyin": {
+          "type": "string",
+          "description": "Pinyin transcription."
+        },
+        "englishTranslation": {
+          "type": "string",
+          "description": "English meaning."
+        },
+        "grammarNotes": {
+          "type": "string",
+          "description": "Grammar and usage notes."
+        },
+        "folder": {
+          "type": "string",
+          "description": "Notebook folder category."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update server timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "title",
+        "chineseSentence",
+        "pinyin",
+        "englishTranslation",
+        "grammarNotes",
+        "folder",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Per-user Mandarin learning profile and gamification state."
+    },
+    "/users/{userId}/flashcards/{cardId}": {
+      "schema": {
+        "$ref": "#/entities/FlashcardItem"
+      },
+      "description": "Per-user spaced repetition flashcards and custom vocabulary."
+    },
+    "/users/{userId}/notes/{noteId}": {
+      "schema": {
+        "$ref": "#/entities/PersonalNote"
+      },
+      "description": "Per-user personal Mandarin notebook entries."
+    }
+  }
+}

@@ -1,0 +1,198 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isBoundedStringList(arr, maxLen) {
+      return arr is list && arr.size() <= maxLen && (arr.size() == 0 || arr[0] is string);
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.userId is string && data.userId == userId && data.userId == request.auth.uid &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             data.scriptMode is string && (data.scriptMode == 'SIMPLIFIED' || data.scriptMode == 'TRADITIONAL') &&
+             data.hskStandard is string && (data.hskStandard == 'HSK_2' || data.hskStandard == 'HSK_3') &&
+             data.currentHskLevel is int && data.currentHskLevel >= 1 && data.currentHskLevel <= 6 &&
+             data.dailyGoalMinutes is int && data.dailyGoalMinutes >= 5 && data.dailyGoalMinutes <= 240 &&
+             data.studyMinutesToday is int && data.studyMinutesToday >= 0 && data.studyMinutesToday <= 1440 &&
+             data.totalStudyMinutes is int && data.totalStudyMinutes >= 0 && data.totalStudyMinutes <= 1000000 &&
+             data.streakDays is int && data.streakDays >= 0 && data.streakDays <= 10000 &&
+             data.points is int && data.points >= 0 && data.points <= 10000000 &&
+             isBoundedStringList(data.completedLessonIds, 200) &&
+             isBoundedStringList(data.masteredCharacterIds, 500) &&
+             isBoundedStringList(data.unlockedBadgeIds, 100) &&
+             isBoundedStringList(data.downloadedPackIds, 100) &&
+             data.listeningAccuracy is int && data.listeningAccuracy >= 0 && data.listeningAccuracy <= 100 &&
+             data.readingAccuracy is int && data.readingAccuracy >= 0 && data.readingAccuracy <= 100 &&
+             data.speakingAccuracy is int && data.speakingAccuracy >= 0 && data.speakingAccuracy <= 100 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidFlashcardItem(data, userId) {
+      return data.userId is string && data.userId == userId && data.userId == request.auth.uid &&
+             data.simplified is string && data.simplified.size() >= 1 && data.simplified.size() <= 50 &&
+             data.traditional is string && data.traditional.size() >= 1 && data.traditional.size() <= 50 &&
+             data.pinyin is string && data.pinyin.size() >= 1 && data.pinyin.size() <= 100 &&
+             data.english is string && data.english.size() >= 1 && data.english.size() <= 300 &&
+             data.partOfSpeech is string && data.partOfSpeech.size() >= 1 && data.partOfSpeech.size() <= 50 &&
+             data.exampleChinese is string && data.exampleChinese.size() <= 300 &&
+             data.examplePinyin is string && data.examplePinyin.size() <= 300 &&
+             data.exampleEnglish is string && data.exampleEnglish.size() <= 300 &&
+             data.hskLevel is int && data.hskLevel >= 1 && data.hskLevel <= 6 &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 60 &&
+             data.status is string && (data.status == 'LEARNING' || data.status == 'FAMILIAR' || data.status == 'MASTERED') &&
+             data.intervalDays is int && data.intervalDays >= 0 && data.intervalDays <= 3650 &&
+             data.easeFactor is int && data.easeFactor >= 130 && data.easeFactor <= 400 &&
+             data.repetitions is int && data.repetitions >= 0 && data.repetitions <= 10000 &&
+             data.nextReviewEpochDay is int && data.nextReviewEpochDay >= 0 && data.nextReviewEpochDay <= 100000 &&
+             data.isFavorite is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidPersonalNote(data, userId) {
+      return data.userId is string && data.userId == userId && data.userId == request.auth.uid &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+             data.chineseSentence is string && data.chineseSentence.size() >= 1 && data.chineseSentence.size() <= 500 &&
+             data.pinyin is string && data.pinyin.size() <= 500 &&
+             data.englishTranslation is string && data.englishTranslation.size() <= 500 &&
+             data.grammarNotes is string && data.grammarNotes.size() <= 2000 &&
+             data.folder is string && data.folder.size() >= 1 && data.folder.size() <= 60 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if isOwner(userId) && isValidId(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'displayName', 'scriptMode', 'hskStandard', 'currentHskLevel',
+                         'dailyGoalMinutes', 'studyMinutesToday', 'totalStudyMinutes', 'streakDays',
+                         'points', 'completedLessonIds', 'masteredCharacterIds', 'unlockedBadgeIds',
+                         'downloadedPackIds', 'listeningAccuracy', 'readingAccuracy', 'speakingAccuracy',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'displayName', 'scriptMode', 'hskStandard', 'currentHskLevel',
+                         'dailyGoalMinutes', 'studyMinutesToday', 'totalStudyMinutes', 'streakDays',
+                         'points', 'completedLessonIds', 'masteredCharacterIds', 'unlockedBadgeIds',
+                         'downloadedPackIds', 'listeningAccuracy', 'readingAccuracy', 'speakingAccuracy',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidUserProfile(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'displayName', 'scriptMode', 'hskStandard', 'currentHskLevel',
+                         'dailyGoalMinutes', 'studyMinutesToday', 'totalStudyMinutes', 'streakDays',
+                         'points', 'completedLessonIds', 'masteredCharacterIds', 'unlockedBadgeIds',
+                         'downloadedPackIds', 'listeningAccuracy', 'readingAccuracy', 'speakingAccuracy',
+                         'updatedAt'
+                       ]);
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      match /flashcards/{cardId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(cardId);
+        allow list: if isOwner(userId) && isValidId(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(cardId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'simplified', 'traditional', 'pinyin', 'english',
+                           'partOfSpeech', 'exampleChinese', 'examplePinyin', 'exampleEnglish',
+                           'hskLevel', 'category', 'status', 'intervalDays', 'easeFactor',
+                           'repetitions', 'nextReviewEpochDay', 'isFavorite', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'simplified', 'traditional', 'pinyin', 'english',
+                           'partOfSpeech', 'exampleChinese', 'examplePinyin', 'exampleEnglish',
+                           'hskLevel', 'category', 'status', 'intervalDays', 'easeFactor',
+                           'repetitions', 'nextReviewEpochDay', 'isFavorite', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidFlashcardItem(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(cardId) &&
+                         isValidFlashcardItem(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'simplified', 'traditional', 'pinyin', 'english',
+                           'partOfSpeech', 'exampleChinese', 'examplePinyin', 'exampleEnglish',
+                           'hskLevel', 'category', 'status', 'intervalDays', 'easeFactor',
+                           'repetitions', 'nextReviewEpochDay', 'isFavorite', 'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(cardId);
+      }
+
+      match /notes/{noteId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(noteId);
+        allow list: if isOwner(userId) && isValidId(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(noteId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'title', 'chineseSentence', 'pinyin',
+                           'englishTranslation', 'grammarNotes', 'folder',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'title', 'chineseSentence', 'pinyin',
+                           'englishTranslation', 'grammarNotes', 'folder',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidPersonalNote(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(noteId) &&
+                         isValidPersonalNote(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'title', 'chineseSentence', 'pinyin',
+                           'englishTranslation', 'grammarNotes', 'folder',
+                           'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(noteId);
+      }
+    }
+  }
+}
